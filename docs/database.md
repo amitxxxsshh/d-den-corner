@@ -1,6 +1,26 @@
+# D Den Corner Database
 
-# D Den Corner
+The persistent source of truth is Cloudflare D1.
 
-This document describes the implemented D Den Corner system.
+The database is managed through versioned SQL migrations.
 
-Implementation details must be updated as the system evolves.
+## Core relationships
+
+Location
+→ Table
+→ Table Session
+→ Customer Session
+→ Orders
+→ Order Items
+→ Order Status History
+
+Menu Category
+→ Menu Item
+
+Festival
+→ Special Menu
+→ Special Menu Items
+
+Users
+→ Audit Logs
+→ Order Status History
