@@ -1,5 +1,5 @@
 {
-  "name": "api",
+  "name": "@d-den-corner/api",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
