@@ -2,7 +2,17 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "api",
   "main": "src/index.ts",
-  "compatibility_date": "2026-09-24"
+  "compatibility_date": "2026-09-24",
+
+  "d1_databases": [
+  {
+    "binding": "DB",
+    "database_name": "d-den-corner-db",
+    "database_id": "8433e974-cbf8-4993-b0cb-bea83f535935",
+    "migrations_dir": "migrations"
+  }
+]
+}
   // "compatibility_flags": [
   //   "nodejs_compat"
   // ],
@@ -35,4 +45,3 @@
   //   "enabled": true,
   //   "head_sampling_rate": 1
   // }
-}
