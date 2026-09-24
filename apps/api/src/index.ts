@@ -1,12 +1,13 @@
-import { Hono } from 'hono';
-import type { Bindings } from "./types";
+import { Hono } from "hono";
+
+import type { Bindings } from "./types/env";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
-app.get('/health', (c) => {
+app.get("/health", (c) => {
   return c.json({
     ok: true,
-    service: 'd-den-corner-api',
+    service: "d-den-corner-api",
   });
 });
 
