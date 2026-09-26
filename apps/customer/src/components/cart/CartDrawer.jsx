@@ -75,7 +75,9 @@ export default function CartDrawer({
           ) : (
             items.map((item) => (
               <CartItem
-                key={item.menuItemId}
+                key={`${item.menuItemId}::${
+                  item.specialMenuId || "REGULAR"
+                }`}
                 item={item}
               />
             ))
@@ -97,12 +99,8 @@ export default function CartDrawer({
 
           <button
             type="button"
-            disabled={
-              items.length === 0
-            }
-            onClick={
-              handleCheckout
-            }
+            disabled={items.length === 0}
+            onClick={handleCheckout}
             className="mt-4 w-full rounded-2xl bg-gray-900 px-5 py-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
           >
             Proceed to checkout

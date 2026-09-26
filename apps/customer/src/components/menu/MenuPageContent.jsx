@@ -2,327 +2,330 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import CustomerHeader from "../customer/CustomerHeader";
-import TableBadge from "../customer/TableBadge";
-import LoadingState from "../customer/LoadingState";
-import ErrorState from "../customer/ErrorState";
-
-import MenuSearch from "./MenuSearch";
-import MenuCategories from "./MenuCategories";
+import { getMenu } from "../../lib/menu";
+import { getCurrentFestivals } from "../../lib/festivals";
+import FestivalMenu from "./FestivalMenu";
 import MenuItemCard from "./MenuItemCard";
 
-import { getMenu } from "../../lib/menu";
-import {
-  normalizeMenuResponse,
-  searchItems,
-} from "../../lib/menu-utils";
-
-export default function MenuPageContent({
-  onItemSelect,
-}) {
+export default function MenuPageContent({ onItemSelect }) {
   const [menu, setMenu] = useState({
     categories: [],
     items: [],
   });
 
-  const [status, setStatus] = useState("loading");
+  const [festivals, setFestivals] = useState([]);
+  const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] =
+    useState("ALL");
+  const [loading, setLoading] = useState(true);
+  const [festivalLoading, setFestivalLoading] =
+    useState(true);
   const [error, setError] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState(null);
-
-  async function loadMenu() {
-    setStatus("loading");
-    setError("");
-
-    try {
-      const result = await getMenu();
-
-      setMenu(normalizeMenuResponse(result));
-      setStatus("success");
-    } catch (err) {
-      setStatus("error");
-      setError(
-        err?.message ||
-          "Unable to load the menu right now.",
-      );
-    }
-  }
 
   useEffect(() => {
-    loadMenu();
-  }, []);
+    let cancelled = false;
 
-  /*
-   * When the user scrolls through the menu, determine
-   * which category section is currently visible.
-   */
-  useEffect(() => {
-    if (
-      status !== "success" ||
-      !menu.categories.length ||
-      searchQuery.trim()
-    ) {
-      return;
-    }
+    async function loadMenu() {
+      try {
+        setLoading(true);
+        setError("");
 
-    const sections = menu.categories
-      .map((category) => ({
-        id: category.id,
-        element: document.getElementById(
-          `menu-category-${category.id}`,
-        ),
-      }))
-      .filter((section) => section.element);
+        const data = await getMenu();
 
-    if (!sections.length) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visibleEntries = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort(
-            (a, b) =>
-              a.boundingClientRect.top -
-              b.boundingClientRect.top,
-          );
-
-        if (visibleEntries.length > 0) {
-          const visibleId =
-            visibleEntries[0].target.dataset.categoryId;
-
-          if (visibleId) {
-            setActiveCategory(visibleId);
-          }
+        if (cancelled) {
+          return;
         }
-      },
-      {
-        root: null,
-        rootMargin: "-120px 0px -60% 0px",
-        threshold: 0,
-      },
-    );
 
-    sections.forEach(({ element }) => {
-      observer.observe(element);
-    });
+        setMenu({
+          categories: Array.isArray(data?.categories)
+            ? data.categories
+            : [],
+          items: Array.isArray(data?.items)
+            ? data.items
+            : [],
+        });
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err?.message ||
+              "Unable to load the menu.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadMenu();
 
     return () => {
-      observer.disconnect();
+      cancelled = true;
     };
-  }, [
-    status,
-    menu.categories,
-    searchQuery,
-  ]);
+  }, []);
 
-  const searchableItems = useMemo(() => {
-    return searchItems(
-      menu.items,
-      searchQuery,
-    );
-  }, [
-    menu.items,
-    searchQuery,
-  ]);
+  useEffect(() => {
+    let cancelled = false;
 
-  const itemsByCategory = useMemo(() => {
-    const result = new Map();
+    async function loadFestivals() {
+      try {
+        setFestivalLoading(true);
 
-    for (const category of menu.categories) {
-      result.set(category.id, []);
+        const data =
+          await getCurrentFestivals();
+
+        if (cancelled) {
+          return;
+        }
+
+        setFestivals(
+          Array.isArray(data?.festivals)
+            ? data.festivals
+            : [],
+        );
+      } catch {
+        if (!cancelled) {
+          setFestivals([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setFestivalLoading(false);
+        }
+      }
     }
 
-    for (const item of searchableItems) {
-      if (!result.has(item.category_id)) {
-        result.set(item.category_id, []);
+    loadFestivals();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filteredItems = useMemo(() => {
+    const searchValue =
+      search.trim().toLowerCase();
+
+    return menu.items.filter((item) => {
+      const matchesCategory =
+        selectedCategory === "ALL" ||
+        item.category_id ===
+          selectedCategory ||
+        item.categoryId ===
+          selectedCategory;
+
+      if (!matchesCategory) {
+        return false;
       }
 
-      result
-        .get(item.category_id)
-        .push(item);
-    }
+      if (!searchValue) {
+        return true;
+      }
 
-    return result;
+      const name = String(
+        item.name || "",
+      ).toLowerCase();
+
+      const description = String(
+        item.description || "",
+      ).toLowerCase();
+
+      return (
+        name.includes(searchValue) ||
+        description.includes(searchValue)
+      );
+    });
   }, [
-    menu.categories,
-    searchableItems,
+    menu.items,
+    search,
+    selectedCategory,
   ]);
 
-  const visibleCategoryCount =
-    menu.categories.filter(
-      (category) =>
-        (itemsByCategory.get(category.id) || [])
-          .length > 0,
-    ).length;
-
-  if (status === "loading") {
+  if (loading) {
     return (
       <main className="min-h-screen bg-white">
-        <CustomerHeader
-          title="D Den Corner"
-          subtitle="Menu"
-          rightContent={<TableBadge />}
-        />
+        <div className="flex min-h-screen items-center justify-center px-6">
+          <div className="text-center">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-gray-900" />
 
-        <LoadingState message="Loading menu..." />
+            <p className="mt-4 text-sm text-gray-500">
+              Loading menu...
+            </p>
+          </div>
+        </div>
       </main>
     );
   }
 
-  if (status === "error") {
+  if (error) {
     return (
-      <main className="min-h-screen bg-white">
-        <CustomerHeader
-          title="D Den Corner"
-          subtitle="Menu"
-          rightContent={<TableBadge />}
-        />
+      <main className="min-h-screen bg-white px-6 py-12">
+        <div className="mx-auto max-w-xl rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
+          <h1 className="text-lg font-semibold text-red-900">
+            Unable to load the menu
+          </h1>
 
-        <ErrorState
-          title="Menu unavailable"
-          message={error}
-          onRetry={loadMenu}
-        />
+          <p className="mt-2 text-sm text-red-700">
+            {error}
+          </p>
+        </div>
       </main>
     );
+  }
+
+  function handleFestivalAdd(item) {
+    if (!onItemSelect) {
+      return;
+    }
+
+    onItemSelect({
+      id: item.menuItemId,
+      name: item.name,
+      description: item.description,
+
+      /*
+       * Display-only price.
+       * The API recalculates the actual order price
+       * from D1 during checkout.
+       */
+      price_minor:
+        item.specialPriceMinor,
+
+      available:
+        item.available,
+
+      festivalSpecial: true,
+
+      /*
+       * This is the parent special_menus.id.
+       * It is the value required by the order API.
+       */
+      specialMenuId:
+        item.specialMenuId,
+
+      specialMenuItemId:
+        item.id,
+
+      specialMenuPriceMinor:
+        item.specialPriceMinor,
+
+      regularPriceMinor:
+        item.regularPriceMinor,
+
+      categoryId:
+        item.categoryId,
+    });
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 pb-24">
-      <CustomerHeader
-        title="D Den Corner"
-        subtitle="Choose your favourites"
-        rightContent={<TableBadge />}
-      />
-
-      <section className="px-4 pt-5">
-        <MenuSearch
-          value={searchQuery}
-          onChange={(value) => {
-            setSearchQuery(value);
-
-            if (value.trim()) {
-              setActiveCategory(null);
-            }
-          }}
+    <main className="min-h-screen bg-white">
+      {!festivalLoading &&
+      festivals.length > 0 ? (
+        <FestivalMenu
+          festivals={festivals}
+          onAdd={handleFestivalAdd}
         />
+      ) : null}
 
-        <div className="mt-5">
-          <MenuCategories
-            categories={menu.categories}
-            activeCategory={activeCategory}
-            onCategoryChange={setActiveCategory}
-          />
-        </div>
-      </section>
+      <section className="px-4 py-6 sm:px-6">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-6">
+            <label
+              htmlFor="menu-search"
+              className="sr-only"
+            >
+              Search menu
+            </label>
 
-      <section className="px-4 py-5">
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-base font-bold">
-            {searchQuery
-              ? "Search results"
-              : "Menu"}
-          </h2>
-
-          <span className="text-xs text-gray-500">
-            {searchableItems.length} items
-          </span>
-        </div>
-
-        {searchableItems.length === 0 ? (
-          <div className="rounded-2xl bg-white p-6 text-center">
-            <p className="font-semibold text-gray-700">
-              No dishes found
-            </p>
-
-            <p className="mt-1 text-sm text-gray-500">
-              Try another search.
-            </p>
-          </div>
-        ) : searchQuery ? (
-          /*
-           * Search mode:
-           * show matching items in one simple list.
-           */
-          <div className="space-y-3">
-            {searchableItems.map((item) => (
-              <MenuItemCard
-                key={item.id}
-                item={item}
-                onSelect={onItemSelect}
-              />
-            ))}
-          </div>
-        ) : (
-          /*
-           * Normal mode:
-           * render every category as its own section.
-           */
-          <div className="space-y-10">
-            {menu.categories.map((category) => {
-              const categoryItems =
-                itemsByCategory.get(
-                  category.id,
-                ) || [];
-
-              if (!categoryItems.length) {
-                return null;
+            <input
+              id="menu-search"
+              type="search"
+              value={search}
+              onChange={(event) =>
+                setSearch(
+                  event.target.value,
+                )
               }
+              placeholder="Search menu..."
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
+            />
+          </div>
 
-              return (
-                <section
-                  key={category.id}
-                  id={`menu-category-${category.id}`}
-                  data-category-id={category.id}
-                  className="scroll-mt-28"
-                >
-                  <div className="mb-4">
-                    <h3 className="text-xl font-bold text-gray-900">
+          {menu.categories.length > 0 ? (
+            <div className="mb-6 flex gap-2 overflow-x-auto pb-1">
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedCategory("ALL")
+                }
+                className={[
+                  "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition",
+                  selectedCategory ===
+                  "ALL"
+                    ? "bg-gray-900 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200",
+                ].join(" ")}
+              >
+                All
+              </button>
+
+              {menu.categories.map(
+                (category) => {
+                  const categoryId =
+                    category.id;
+
+                  const active =
+                    selectedCategory ===
+                    categoryId;
+
+                  return (
+                    <button
+                      key={categoryId}
+                      type="button"
+                      onClick={() =>
+                        setSelectedCategory(
+                          categoryId,
+                        )
+                      }
+                      className={[
+                        "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition",
+                        active
+                          ? "bg-gray-900 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200",
+                      ].join(" ")}
+                    >
                       {category.name}
-                    </h3>
+                    </button>
+                  );
+                },
+              )}
+            </div>
+          ) : null}
 
-                    <p className="mt-1 text-sm text-gray-500">
-                      {categoryItems.length}{" "}
-                      {categoryItems.length === 1
-                        ? "item"
-                        : "items"}
-                    </p>
-                  </div>
-
-                  <div className="space-y-3">
-                    {categoryItems.map(
-                      (item) => (
-                        <MenuItemCard
-                          key={item.id}
-                          item={item}
-                          onSelect={
-                            onItemSelect
-                          }
-                        />
-                      ),
-                    )}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
-        )}
-
-        {!searchQuery &&
-        visibleCategoryCount === 0 ? (
-          <div className="rounded-2xl bg-white p-6 text-center">
-            <p className="font-semibold text-gray-700">
-              No dishes found
-            </p>
-
-            <p className="mt-1 text-sm text-gray-500">
-              There are currently no available
-              menu items.
-            </p>
-          </div>
-        ) : null}
+          {filteredItems.length === 0 ? (
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 px-6 py-12 text-center">
+              <p className="text-sm text-gray-500">
+                No menu items found.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredItems.map(
+                (item) => (
+                  <MenuItemCard
+                    key={item.id}
+                    item={item}
+                    onClick={() =>
+                      onItemSelect?.(
+                        item,
+                      )
+                    }
+                  />
+                ),
+              )}
+            </div>
+          )}
+        </div>
       </section>
     </main>
   );

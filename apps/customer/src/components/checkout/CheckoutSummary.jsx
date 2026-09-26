@@ -52,33 +52,66 @@ export default function CheckoutSummary({
           ) : (
             <div className="divide-y divide-gray-100">
               {items.map((item) => {
-                const lineTotal =
+                const unitPriceMinor =
                   Number(
-                    item.unitPriceMinor ||
-                      0,
-                  ) *
+                    item.priceMinor ?? 0,
+                  );
+
+                const lineTotal =
+                  unitPriceMinor *
                   Number(
                     item.quantity || 0,
                   );
 
+                const isFestivalSpecial =
+                  item.festivalSpecial === true;
+
                 return (
                   <div
-                    key={
-                      item.menuItemId
-                    }
+                    key={`${item.menuItemId}::${
+                      item.specialMenuId ||
+                      "REGULAR"
+                    }`}
                     className="flex items-start justify-between gap-4 px-4 py-4"
                   >
                     <div className="min-w-0">
-                      <p className="font-semibold text-gray-900">
-                        {item.name}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-gray-900">
+                          {item.name}
+                        </p>
+
+                        {isFestivalSpecial ? (
+                          <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-semibold text-amber-700">
+                            Festival
+                          </span>
+                        ) : null}
+                      </div>
 
                       <p className="mt-1 text-sm text-gray-500">
                         {item.quantity} ×{" "}
                         {formatCheckoutPrice(
-                          item.unitPriceMinor,
+                          unitPriceMinor,
                         )}
                       </p>
+
+                      {isFestivalSpecial &&
+                      item.regularPriceMinor !==
+                        null &&
+                      item.regularPriceMinor !==
+                        undefined &&
+                      Number(
+                        item.regularPriceMinor,
+                      ) !==
+                        unitPriceMinor ? (
+                        <p className="mt-1 text-xs text-gray-400">
+                          Regular price:{" "}
+                          <span className="line-through">
+                            {formatCheckoutPrice(
+                              item.regularPriceMinor,
+                            )}
+                          </span>
+                        </p>
+                      ) : null}
                     </div>
 
                     <p className="shrink-0 font-semibold text-gray-900">
@@ -120,9 +153,7 @@ export default function CheckoutSummary({
           <div className="mx-auto max-w-2xl">
             <button
               type="button"
-              onClick={
-                onPlaceOrder
-              }
+              onClick={onPlaceOrder}
               disabled={
                 submitting ||
                 items.length === 0

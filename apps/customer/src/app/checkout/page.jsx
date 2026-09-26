@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useCart } from "../../components/cart/CartContext";
-
 import CheckoutSummary from "../../components/checkout/CheckoutSummary";
 
 import {
@@ -32,7 +31,7 @@ export default function CheckoutPage() {
 
   async function handlePlaceOrder() {
     if (
-      !items ||
+      !Array.isArray(items) ||
       items.length === 0
     ) {
       setError(
@@ -50,6 +49,15 @@ export default function CheckoutPage() {
     setError("");
 
     try {
+      /*
+       * createOrder() sends only:
+       * - menuItemId
+       * - quantity
+       * - optional specialMenuId
+       *
+       * It does NOT send a trusted price.
+       * The API calculates the final price from D1.
+       */
       const response =
         await createOrder(items);
 
@@ -86,9 +94,7 @@ export default function CheckoutPage() {
       items={items}
       subtotalMinor={subtotalMinor}
       onBack={handleBack}
-      onPlaceOrder={
-        handlePlaceOrder
-      }
+      onPlaceOrder={handlePlaceOrder}
       submitting={submitting}
       error={error}
     />

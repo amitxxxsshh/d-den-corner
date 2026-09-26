@@ -16,21 +16,41 @@ import {
 
 const CartContext = createContext(null);
 
+function getCartItemKey(menuItemId, specialMenuId) {
+  return `${menuItemId}::${specialMenuId || "REGULAR"}`;
+}
+
 export function CartProvider({ children }) {
   const [items, setItems] = useState([]);
 
   const addItem = useCallback((menuItem) => {
     setItems((currentItems) => {
+      const specialMenuId =
+        menuItem.specialMenuId || null;
+
+      const itemKey = getCartItemKey(
+        menuItem.id,
+        specialMenuId,
+      );
+
       const existing = currentItems.find(
-        (item) => item.menuItemId === menuItem.id,
+        (item) =>
+          getCartItemKey(
+            item.menuItemId,
+            item.specialMenuId,
+          ) === itemKey,
       );
 
       if (existing) {
         return currentItems.map((item) =>
-          item.menuItemId === menuItem.id
+          getCartItemKey(
+            item.menuItemId,
+            item.specialMenuId,
+          ) === itemKey
             ? {
                 ...item,
-                quantity: item.quantity + 1,
+                quantity:
+                  item.quantity + 1,
               }
             : item,
         );
@@ -43,41 +63,79 @@ export function CartProvider({ children }) {
     });
   }, []);
 
-  const increaseItem = useCallback((menuItemId) => {
-    setItems((currentItems) =>
-      currentItems.map((item) =>
-        item.menuItemId === menuItemId
-          ? {
-              ...item,
-              quantity: item.quantity + 1,
-            }
-          : item,
-      ),
-    );
-  }, []);
+  const increaseItem = useCallback(
+    (menuItemId, specialMenuId = null) => {
+      const itemKey = getCartItemKey(
+        menuItemId,
+        specialMenuId,
+      );
 
-  const decreaseItem = useCallback((menuItemId) => {
-    setItems((currentItems) =>
-      currentItems
-        .map((item) =>
-          item.menuItemId === menuItemId
+      setItems((currentItems) =>
+        currentItems.map((item) =>
+          getCartItemKey(
+            item.menuItemId,
+            item.specialMenuId,
+          ) === itemKey
             ? {
                 ...item,
-                quantity: item.quantity - 1,
+                quantity:
+                  item.quantity + 1,
               }
             : item,
-        )
-        .filter((item) => item.quantity > 0),
-    );
-  }, []);
+        ),
+      );
+    },
+    [],
+  );
 
-  const removeItem = useCallback((menuItemId) => {
-    setItems((currentItems) =>
-      currentItems.filter(
-        (item) => item.menuItemId !== menuItemId,
-      ),
-    );
-  }, []);
+  const decreaseItem = useCallback(
+    (menuItemId, specialMenuId = null) => {
+      const itemKey = getCartItemKey(
+        menuItemId,
+        specialMenuId,
+      );
+
+      setItems((currentItems) =>
+        currentItems
+          .map((item) =>
+            getCartItemKey(
+              item.menuItemId,
+              item.specialMenuId,
+            ) === itemKey
+              ? {
+                  ...item,
+                  quantity:
+                    item.quantity - 1,
+                }
+              : item,
+          )
+          .filter(
+            (item) => item.quantity > 0,
+          ),
+      );
+    },
+    [],
+  );
+
+  const removeItem = useCallback(
+    (menuItemId, specialMenuId = null) => {
+      const itemKey = getCartItemKey(
+        menuItemId,
+        specialMenuId,
+      );
+
+      setItems((currentItems) =>
+        currentItems.filter(
+          (item) =>
+            getCartItemKey(
+              item.menuItemId,
+              item.specialMenuId,
+            ) !== itemKey,
+        ),
+      );
+    },
+    [],
+  );
 
   const clearCart = useCallback(() => {
     setItems([]);

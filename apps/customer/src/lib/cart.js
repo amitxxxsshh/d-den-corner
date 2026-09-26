@@ -1,21 +1,29 @@
-export function createCartItem(item, quantity = 1) {
+export function createCartItem(menuItem) {
   return {
-    menuItemId: item.id,
-    name: item.name,
-    description: item.description || "",
-    unitPriceMinor: Number(item.price_minor || 0),
-    quantity,
-  };
-}
+    menuItemId: menuItem.id,
+    name: menuItem.name,
+    description: menuItem.description || "",
+    priceMinor: Number(
+      menuItem.specialPriceMinor ??
+        menuItem.price_minor ??
+        menuItem.priceMinor ??
+        0,
+    ),
+    quantity: 1,
+    available: menuItem.available !== false,
 
-export function calculateCartSubtotal(items) {
-  return items.reduce(
-    (total, item) =>
-      total +
-      Number(item.unitPriceMinor || 0) *
-        Number(item.quantity || 0),
-    0,
-  );
+    specialMenuId:
+      menuItem.specialMenuId || null,
+
+    festivalSpecial:
+      menuItem.festivalSpecial === true,
+
+    regularPriceMinor:
+      menuItem.regularPriceMinor ??
+      menuItem.price_minor ??
+      menuItem.priceMinor ??
+      null,
+  };
 }
 
 export function calculateCartItemCount(items) {
@@ -26,10 +34,12 @@ export function calculateCartItemCount(items) {
   );
 }
 
-export function formatCartPrice(priceMinor) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    minimumFractionDigits: 2,
-  }).format(Number(priceMinor || 0) / 100);
+export function calculateCartSubtotal(items) {
+  return items.reduce(
+    (total, item) =>
+      total +
+      Number(item.priceMinor || 0) *
+        Number(item.quantity || 0),
+    0,
+  );
 }

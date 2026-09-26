@@ -58,22 +58,39 @@ function isCreateOrderInput(
         return false;
       }
 
-      const value =
+      const itemValue =
         item as Record<
           string,
           unknown
         >;
 
-      return (
-        typeof value.menuItemId ===
-          "string" &&
-        value.menuItemId.trim()
-          .length > 0 &&
-        Number.isInteger(
-          value.quantity,
-        ) &&
-        Number(value.quantity) > 0
-      );
+      if (
+        typeof itemValue.menuItemId !==
+          "string" ||
+        itemValue.menuItemId.trim()
+          .length === 0 ||
+        !Number.isInteger(
+          itemValue.quantity,
+        ) ||
+        Number(itemValue.quantity) <= 0
+      ) {
+        return false;
+      }
+
+      if (
+        itemValue.specialMenuId !==
+          undefined &&
+        (
+          typeof itemValue.specialMenuId !==
+            "string" ||
+          itemValue.specialMenuId.trim()
+            .length === 0
+        )
+      ) {
+        return false;
+      }
+
+      return true;
     },
   );
 }
@@ -155,6 +172,21 @@ orderRoutes.post(
             ok: false,
             message:
               "One or more selected items are no longer available.",
+          },
+          409,
+        );
+      }
+
+      if (
+        error instanceof Error &&
+        error.message ===
+          "SPECIAL_MENU_UNAVAILABLE"
+      ) {
+        return c.json(
+          {
+            ok: false,
+            message:
+              "One or more festival items are no longer available.",
           },
           409,
         );

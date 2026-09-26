@@ -160,12 +160,19 @@ export default function Home() {
             </h1>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link
               href="/tables"
               className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-50"
             >
               Tables & QR
+            </Link>
+
+            <Link
+              href="/festivals"
+              className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-50"
+            >
+              Festival Menu
             </Link>
 
             <button

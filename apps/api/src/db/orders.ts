@@ -17,10 +17,29 @@ import type {
   OrderStatusHistoryItem,
 } from "../types/orders";
 
+type OrderMenuItem = {
+  id: string;
+  name: string;
+  price_minor: number;
+  available: number;
+  archived: number;
+};
+
+type SpecialMenuPricing = {
+  special_menu_id: string;
+  menu_item_id: string;
+  special_price_minor: number | null;
+  special_available: number;
+  festival_active: number;
+  festival_archived: number;
+  festival_start_date: string;
+  festival_end_date: string;
+};
+
 async function getMenuItemsForOrder(
   db: D1Database,
   menuItemIds: string[],
-) {
+): Promise<OrderMenuItem[]> {
   if (menuItemIds.length === 0) {
     return [];
   }
@@ -29,13 +48,7 @@ async function getMenuItemsForOrder(
     .map(() => "?")
     .join(", ");
 
-  return queryMany<{
-    id: string;
-    name: string;
-    price_minor: number;
-    available: number;
-    archived: number;
-  }>(
+  return queryMany<OrderMenuItem>(
     db,
     `
       SELECT
@@ -51,6 +64,57 @@ async function getMenuItemsForOrder(
   );
 }
 
+async function getSpecialMenuPricing(
+  db: D1Database,
+  specialMenuId: string,
+  menuItemId: string,
+): Promise<SpecialMenuPricing | null> {
+  return queryOne<SpecialMenuPricing>(
+    db,
+    `
+      SELECT
+        sm.id AS special_menu_id,
+        smi.menu_item_id,
+        smi.special_price_minor,
+        smi.available AS special_available,
+        f.active AS festival_active,
+        f.archived AS festival_archived,
+        f.start_date AS festival_start_date,
+        f.end_date AS festival_end_date
+      FROM special_menus sm
+      INNER JOIN special_menu_items smi
+        ON smi.special_menu_id = sm.id
+      INNER JOIN festivals f
+        ON f.id = sm.festival_id
+      WHERE sm.id = ?
+        AND smi.menu_item_id = ?
+      LIMIT 1
+    `,
+    specialMenuId,
+    menuItemId,
+  );
+}
+
+function isFestivalCurrentlyActive(
+  pricing: SpecialMenuPricing,
+): boolean {
+  if (
+    pricing.special_available !== 1 ||
+    pricing.festival_active !== 1 ||
+    pricing.festival_archived !== 0
+  ) {
+    return false;
+  }
+
+  const today =
+    new Date().toISOString().slice(0, 10);
+
+  return (
+    pricing.festival_start_date <= today &&
+    pricing.festival_end_date >= today
+  );
+}
+
 export async function createOrder(
   db: D1Database,
   tableSessionId: string,
@@ -62,31 +126,66 @@ export async function createOrder(
   }
 
   /*
-   * Merge duplicate menu item IDs so the order always contains
-   * one line per menu item.
+   * Merge identical order variants.
+   *
+   * A regular menu item and the same item from a festival
+   * special menu are treated as different order variants.
    */
-  const quantities = new Map<string, number>();
+  const quantities = new Map<
+    string,
+    {
+      menuItemId: string;
+      specialMenuId?: string;
+      quantity: number;
+    }
+  >();
 
   for (const item of input.items) {
-    const menuItemId = item.menuItemId.trim();
-    const quantity = Number(item.quantity);
+    const menuItemId =
+      item.menuItemId.trim();
+
+    const specialMenuId =
+      item.specialMenuId?.trim() || undefined;
+
+    const quantity =
+      Number(item.quantity);
 
     if (
       !menuItemId ||
       !Number.isInteger(quantity) ||
       quantity <= 0
     ) {
-      throw new Error("INVALID_ORDER_ITEMS");
+      throw new Error(
+        "INVALID_ORDER_ITEMS",
+      );
     }
 
-    quantities.set(
-      menuItemId,
-      (quantities.get(menuItemId) || 0) + quantity,
-    );
+    const key =
+      `${menuItemId}::${specialMenuId || "REGULAR"}`;
+
+    const existing =
+      quantities.get(key);
+
+    if (existing) {
+      existing.quantity += quantity;
+    } else {
+      quantities.set(key, {
+        menuItemId,
+        specialMenuId,
+        quantity,
+      });
+    }
   }
 
+  const orderVariants =
+    Array.from(quantities.values());
+
   const menuItemIds = Array.from(
-    quantities.keys(),
+    new Set(
+      orderVariants.map(
+        (item) => item.menuItemId,
+      ),
+    ),
   );
 
   const menuItems =
@@ -95,16 +194,22 @@ export async function createOrder(
       menuItemIds,
     );
 
-  if (menuItems.length !== menuItemIds.length) {
-    throw new Error("MENU_ITEM_UNAVAILABLE");
+  if (
+    menuItems.length !==
+    menuItemIds.length
+  ) {
+    throw new Error(
+      "MENU_ITEM_UNAVAILABLE",
+    );
   }
 
-  const menuItemMap = new Map(
-    menuItems.map((item) => [
-      item.id,
-      item,
-    ]),
-  );
+  const menuItemMap =
+    new Map(
+      menuItems.map((item) => [
+        item.id,
+        item,
+      ]),
+    );
 
   const createdAt =
     new Date().toISOString();
@@ -112,13 +217,16 @@ export async function createOrder(
   const orderId =
     crypto.randomUUID();
 
-  const createdItems: CreatedOrderItem[] = [];
+  const createdItems: CreatedOrderItem[] =
+    [];
 
   let totalAmountMinor = 0;
 
-  for (const menuItemId of menuItemIds) {
+  for (const variant of orderVariants) {
     const menuItem =
-      menuItemMap.get(menuItemId);
+      menuItemMap.get(
+        variant.menuItemId,
+      );
 
     if (
       !menuItem ||
@@ -130,14 +238,49 @@ export async function createOrder(
       );
     }
 
-    const quantity =
-      quantities.get(menuItemId) || 0;
+    let unitPriceMinor =
+      Number(
+        menuItem.price_minor,
+      );
 
-    const unitPriceMinor =
-      Number(menuItem.price_minor);
+    if (variant.specialMenuId) {
+      const pricing =
+        await getSpecialMenuPricing(
+          db,
+          variant.specialMenuId,
+          variant.menuItemId,
+        );
+
+      if (
+        !pricing ||
+        !isFestivalCurrentlyActive(
+          pricing,
+        )
+      ) {
+        throw new Error(
+          "SPECIAL_MENU_UNAVAILABLE",
+        );
+      }
+
+      /*
+       * If special_price_minor is NULL,
+       * the schema allows the special menu
+       * to use the regular menu price.
+       */
+      unitPriceMinor =
+        pricing.special_price_minor ===
+        null
+          ? Number(
+              menuItem.price_minor,
+            )
+          : Number(
+              pricing.special_price_minor,
+            );
+    }
 
     const lineTotalMinor =
-      unitPriceMinor * quantity;
+      unitPriceMinor *
+      variant.quantity;
 
     totalAmountMinor +=
       lineTotalMinor;
@@ -165,19 +308,21 @@ export async function createOrder(
       menuItem.id,
       menuItem.name,
       unitPriceMinor,
-      quantity,
+      variant.quantity,
       lineTotalMinor,
       createdAt,
     );
 
     createdItems.push({
       id: itemId,
-      menu_item_id: menuItem.id,
+      menu_item_id:
+        menuItem.id,
       item_name_snapshot:
         menuItem.name,
       unit_price_minor:
         unitPriceMinor,
-      quantity,
+      quantity:
+        variant.quantity,
       line_total_minor:
         lineTotalMinor,
     });
@@ -233,7 +378,8 @@ export async function createOrder(
     total_amount_minor:
       totalAmountMinor,
     items: createdItems,
-    created_at: createdAt,
+    created_at:
+      createdAt,
   };
 }
 

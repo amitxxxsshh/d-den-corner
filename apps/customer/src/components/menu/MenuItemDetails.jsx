@@ -12,7 +12,22 @@ export default function MenuItemDetails({
   }
 
   const unavailable =
-    item.available !== 1 && item.available !== true;
+    item.available !== 1 &&
+    item.available !== true;
+
+  const isFestivalSpecial =
+    item.festivalSpecial === true;
+
+  const displayPrice =
+    isFestivalSpecial &&
+    item.specialPriceMinor !== undefined
+      ? item.specialPriceMinor
+      : item.price_minor;
+
+  const regularPrice =
+    isFestivalSpecial
+      ? item.regularPriceMinor
+      : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/40">
@@ -21,13 +36,32 @@ export default function MenuItemDetails({
 
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold">
-              {item.name}
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold">
+                {item.name}
+              </h2>
 
-            <p className="mt-2 text-lg font-bold">
-              {formatPrice(item.price_minor)}
-            </p>
+              {isFestivalSpecial ? (
+                <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">
+                  Festival
+                </span>
+              ) : null}
+            </div>
+
+            <div className="mt-2 flex items-center gap-2">
+              <p className="text-lg font-bold">
+                {formatPrice(displayPrice)}
+              </p>
+
+              {isFestivalSpecial &&
+              regularPrice !== null &&
+              Number(regularPrice) !==
+                Number(displayPrice) ? (
+                <p className="text-sm text-gray-400 line-through">
+                  {formatPrice(regularPrice)}
+                </p>
+              ) : null}
+            </div>
           </div>
 
           <button
