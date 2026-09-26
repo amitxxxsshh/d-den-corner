@@ -16,11 +16,7 @@ const CUSTOMER_SESSION_COOKIE = "__Host-dd_customer_session";
 const CUSTOMER_SESSION_MAX_AGE_SECONDS = 24 * 60 * 60;
 
 function isValidToken(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    value.length >= 16 &&
-    value.length <= 512
-  );
+  return typeof value === "string" && value.length >= 16 && value.length <= 512;
 }
 
 qrRoutes.post("/join", async (c) => {
@@ -107,9 +103,7 @@ qrRoutes.post("/join", async (c) => {
   }
 
   const customerSessionToken = generateOpaqueToken(32);
-  const customerSessionTokenHash = await sha256Hex(
-    customerSessionToken,
-  );
+  const customerSessionTokenHash = await sha256Hex(customerSessionToken);
 
   const customerSessionId = crypto.randomUUID();
 
@@ -118,36 +112,34 @@ qrRoutes.post("/join", async (c) => {
     now.getTime() + CUSTOMER_SESSION_MAX_AGE_SECONDS * 1000,
   ).toISOString();
 
-  await execute(
-    c.env.DB,
-    `
-      INSERT INTO customer_sessions (
-        id,
-        table_session_id,
-        session_token_hash,
-        expires_at,
-        created_at,
-        last_seen_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?)
-    `,
-    [
-      customerSessionId,
-      tableSession.id,
-      customerSessionTokenHash,
-      expiresAt,
-      now.toISOString(),
-      now.toISOString(),
-    ],
-  );
+ await execute(
+  c.env.DB,
+  `
+    INSERT INTO customer_sessions (
+      id,
+      table_session_id,
+      session_token_hash,
+      expires_at,
+      created_at,
+      last_seen_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?)
+  `,
+  customerSessionId,
+  tableSession.id,
+  customerSessionTokenHash,
+  expiresAt,
+  now.toISOString(),
+  now.toISOString(),
+);
 
   setCookie(c, CUSTOMER_SESSION_COOKIE, customerSessionToken, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "Lax",
-    path: "/",
-    maxAge: CUSTOMER_SESSION_MAX_AGE_SECONDS,
-  });
+  httpOnly: true,
+  secure: true,
+  sameSite: "Lax",
+  path: "/",
+  maxAge: CUSTOMER_SESSION_MAX_AGE_SECONDS,
+});
 
   return c.json({
     ok: true,

@@ -14,7 +14,6 @@ import MenuItemCard from "./MenuItemCard";
 import { getMenu } from "../../lib/menu";
 import {
   normalizeMenuResponse,
-  getItemsForCategory,
   searchItems,
 } from "../../lib/menu-utils";
 
@@ -29,8 +28,7 @@ export default function MenuPageContent({
   const [status, setStatus] = useState("loading");
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] =
-    useState(null);
+  const [activeCategory, setActiveCategory] = useState(null);
 
   async function loadMenu() {
     setStatus("loading");
@@ -54,21 +52,110 @@ export default function MenuPageContent({
     loadMenu();
   }, []);
 
-  const visibleItems = useMemo(() => {
-    const categoryItems = getItemsForCategory(
-      menu.items,
-      activeCategory,
+  /*
+   * When the user scrolls through the menu, determine
+   * which category section is currently visible.
+   */
+  useEffect(() => {
+    if (
+      status !== "success" ||
+      !menu.categories.length ||
+      searchQuery.trim()
+    ) {
+      return;
+    }
+
+    const sections = menu.categories
+      .map((category) => ({
+        id: category.id,
+        element: document.getElementById(
+          `menu-category-${category.id}`,
+        ),
+      }))
+      .filter((section) => section.element);
+
+    if (!sections.length) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntries = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort(
+            (a, b) =>
+              a.boundingClientRect.top -
+              b.boundingClientRect.top,
+          );
+
+        if (visibleEntries.length > 0) {
+          const visibleId =
+            visibleEntries[0].target.dataset.categoryId;
+
+          if (visibleId) {
+            setActiveCategory(visibleId);
+          }
+        }
+      },
+      {
+        root: null,
+        rootMargin: "-120px 0px -60% 0px",
+        threshold: 0,
+      },
     );
 
+    sections.forEach(({ element }) => {
+      observer.observe(element);
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [
+    status,
+    menu.categories,
+    searchQuery,
+  ]);
+
+  const searchableItems = useMemo(() => {
     return searchItems(
-      categoryItems,
+      menu.items,
       searchQuery,
     );
   }, [
     menu.items,
-    activeCategory,
     searchQuery,
   ]);
+
+  const itemsByCategory = useMemo(() => {
+    const result = new Map();
+
+    for (const category of menu.categories) {
+      result.set(category.id, []);
+    }
+
+    for (const item of searchableItems) {
+      if (!result.has(item.category_id)) {
+        result.set(item.category_id, []);
+      }
+
+      result
+        .get(item.category_id)
+        .push(item);
+    }
+
+    return result;
+  }, [
+    menu.categories,
+    searchableItems,
+  ]);
+
+  const visibleCategoryCount =
+    menu.categories.filter(
+      (category) =>
+        (itemsByCategory.get(category.id) || [])
+          .length > 0,
+    ).length;
 
   if (status === "loading") {
     return (
@@ -110,55 +197,132 @@ export default function MenuPageContent({
         rightContent={<TableBadge />}
       />
 
-      <section className="space-y-5 px-4 py-5">
+      <section className="px-4 pt-5">
         <MenuSearch
           value={searchQuery}
-          onChange={setSearchQuery}
+          onChange={(value) => {
+            setSearchQuery(value);
+
+            if (value.trim()) {
+              setActiveCategory(null);
+            }
+          }}
         />
 
-        <MenuCategories
-          categories={menu.categories}
-          activeCategory={activeCategory}
-          onCategoryChange={setActiveCategory}
-        />
-
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-base font-bold">
-              {searchQuery
-                ? "Search results"
-                : activeCategory
-                  ? "Items"
-                  : "Menu"}
-            </h2>
-
-            <span className="text-xs text-gray-500">
-              {visibleItems.length} items
-            </span>
-          </div>
-
-          {visibleItems.length === 0 ? (
-            <div className="rounded-2xl bg-white p-6 text-center">
-              <p className="font-semibold text-gray-700">
-                No dishes found
-              </p>
-
-              <p className="mt-1 text-sm text-gray-500">
-                Try another search or category.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {visibleItems.map((item) => (
-                <MenuItemCard
-                  key={item.id}
-                  item={item}
-                  onSelect={onItemSelect}
-                />
-              ))}
-            </div>
-          )}
+        <div className="mt-5">
+          <MenuCategories
+            categories={menu.categories}
+            activeCategory={activeCategory}
+            onCategoryChange={setActiveCategory}
+          />
         </div>
+      </section>
+
+      <section className="px-4 py-5">
+        <div className="mb-5 flex items-center justify-between">
+          <h2 className="text-base font-bold">
+            {searchQuery
+              ? "Search results"
+              : "Menu"}
+          </h2>
+
+          <span className="text-xs text-gray-500">
+            {searchableItems.length} items
+          </span>
+        </div>
+
+        {searchableItems.length === 0 ? (
+          <div className="rounded-2xl bg-white p-6 text-center">
+            <p className="font-semibold text-gray-700">
+              No dishes found
+            </p>
+
+            <p className="mt-1 text-sm text-gray-500">
+              Try another search.
+            </p>
+          </div>
+        ) : searchQuery ? (
+          /*
+           * Search mode:
+           * show matching items in one simple list.
+           */
+          <div className="space-y-3">
+            {searchableItems.map((item) => (
+              <MenuItemCard
+                key={item.id}
+                item={item}
+                onSelect={onItemSelect}
+              />
+            ))}
+          </div>
+        ) : (
+          /*
+           * Normal mode:
+           * render every category as its own section.
+           */
+          <div className="space-y-10">
+            {menu.categories.map((category) => {
+              const categoryItems =
+                itemsByCategory.get(
+                  category.id,
+                ) || [];
+
+              if (!categoryItems.length) {
+                return null;
+              }
+
+              return (
+                <section
+                  key={category.id}
+                  id={`menu-category-${category.id}`}
+                  data-category-id={category.id}
+                  className="scroll-mt-28"
+                >
+                  <div className="mb-4">
+                    <h3 className="text-xl font-bold text-gray-900">
+                      {category.name}
+                    </h3>
+
+                    <p className="mt-1 text-sm text-gray-500">
+                      {categoryItems.length}{" "}
+                      {categoryItems.length === 1
+                        ? "item"
+                        : "items"}
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    {categoryItems.map(
+                      (item) => (
+                        <MenuItemCard
+                          key={item.id}
+                          item={item}
+                          onSelect={
+                            onItemSelect
+                          }
+                        />
+                      ),
+                    )}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        )}
+
+        {!searchQuery &&
+        visibleCategoryCount === 0 ? (
+          <div className="rounded-2xl bg-white p-6 text-center">
+            <p className="font-semibold text-gray-700">
+              No dishes found
+            </p>
+
+            <p className="mt-1 text-sm text-gray-500">
+              There are currently no available
+              menu items.
+            </p>
+          </div>
+        ) : null}
       </section>
     </main>
   );

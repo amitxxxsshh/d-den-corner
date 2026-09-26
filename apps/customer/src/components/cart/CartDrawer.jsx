@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import CartItem from "./CartItem";
 import { useCart } from "./CartContext";
 import { formatCartPrice } from "../../lib/cart";
@@ -9,6 +11,8 @@ export default function CartDrawer({
   onClose,
   onCheckout,
 }) {
+  const router = useRouter();
+
   const {
     items,
     subtotalMinor,
@@ -16,6 +20,21 @@ export default function CartDrawer({
 
   if (!open) {
     return null;
+  }
+
+  function handleCheckout() {
+    if (items.length === 0) {
+      return;
+    }
+
+    onClose();
+
+    if (onCheckout) {
+      onCheckout();
+      return;
+    }
+
+    router.push("/checkout");
   }
 
   return (
@@ -36,6 +55,7 @@ export default function CartDrawer({
             type="button"
             onClick={onClose}
             className="rounded-full bg-gray-100 px-3 py-2 text-sm font-semibold"
+            aria-label="Close cart"
           >
             ×
           </button>
@@ -69,14 +89,20 @@ export default function CartDrawer({
             </span>
 
             <span className="text-lg font-bold">
-              {formatCartPrice(subtotalMinor)}
+              {formatCartPrice(
+                subtotalMinor,
+              )}
             </span>
           </div>
 
           <button
             type="button"
-            disabled={items.length === 0}
-            onClick={onCheckout}
+            disabled={
+              items.length === 0
+            }
+            onClick={
+              handleCheckout
+            }
             className="mt-4 w-full rounded-2xl bg-gray-900 px-5 py-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
           >
             Proceed to checkout
