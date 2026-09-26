@@ -5,6 +5,7 @@ import {
   addSpecialMenuItem,
   createFestival,
   createSpecialMenu,
+  getAllFestivals,
   getAllSpecialMenuItems,
   getAllSpecialMenusByFestival,
   getFestivalById,
@@ -15,7 +16,12 @@ import {
   updateSpecialMenuStatus,
 } from "../db/festivals";
 
+import {
+  getStaffMenuItems,
+} from "../db/menu";
+
 import type { Bindings } from "../types/env";
+
 import type {
   CreateFestivalInput,
   UpdateFestivalInput,
@@ -73,7 +79,9 @@ function isValidDateString(
   }
 
   const date =
-    new Date(`${value}T00:00:00Z`);
+    new Date(
+      `${value}T00:00:00Z`,
+    );
 
   return (
     !Number.isNaN(
@@ -81,7 +89,8 @@ function isValidDateString(
     ) &&
     date
       .toISOString()
-      .slice(0, 10) === value
+      .slice(0, 10) ===
+      value
   );
 }
 
@@ -114,26 +123,86 @@ function parseOptionalBoolean(
 }
 
 /*
+ * GET /api/staff/festivals
+ */
+staffFestivalRoutes.get(
+  "/",
+  async (c) => {
+    const staffUserId =
+      requireStaff(c);
+
+    if (
+      typeof staffUserId !==
+      "string"
+    ) {
+      return staffUserId;
+    }
+
+    const festivals =
+      await getAllFestivals(
+        c.env.DB,
+      );
+
+    return c.json({
+      ok: true,
+      festivals,
+    });
+  },
+);
+
+/*
+ * GET /api/staff/festivals/menu-items
+ *
+ * Returns the existing non-archived menu
+ * catalogue for festival management.
+ *
+ * IMPORTANT:
+ * This intentionally uses getStaffMenuItems()
+ * rather than getAvailableMenuItems().
+ */
+staffFestivalRoutes.get(
+  "/menu-items",
+  async (c) => {
+    const staffUserId =
+      requireStaff(c);
+
+    if (
+      typeof staffUserId !==
+      "string"
+    ) {
+      return staffUserId;
+    }
+
+    const items =
+      await getStaffMenuItems(
+        c.env.DB,
+      );
+
+    return c.json({
+      ok: true,
+      items,
+    });
+  },
+);
+
+/*
  * GET /api/staff/festivals/:festivalId
  *
- * Staff receives the complete festival configuration,
- * including inactive special menus and unavailable items.
+ * Returns the complete festival configuration,
+ * including inactive special menus and unavailable
+ * special-menu items.
  */
 staffFestivalRoutes.get(
   "/:festivalId",
   async (c) => {
     const staffUserId =
-      getStaffUserId(c);
+      requireStaff(c);
 
-    if (!staffUserId) {
-      return c.json(
-        {
-          ok: false,
-          message:
-            "Staff authentication is required.",
-        },
-        401,
-      );
+    if (
+      typeof staffUserId !==
+      "string"
+    ) {
+      return staffUserId;
     }
 
     const festivalId =
@@ -167,7 +236,9 @@ staffFestivalRoutes.get(
     const menus =
       await Promise.all(
         specialMenus.map(
-          async (specialMenu) => ({
+          async (
+            specialMenu,
+          ) => ({
             ...specialMenu,
             items:
               await getAllSpecialMenuItems(
@@ -191,8 +262,6 @@ staffFestivalRoutes.get(
 
 /*
  * POST /api/staff/festivals
- *
- * Creates a festival in an inactive state.
  */
 staffFestivalRoutes.post(
   "/",
@@ -210,7 +279,8 @@ staffFestivalRoutes.post(
     let body: unknown;
 
     try {
-      body = await c.req.json();
+      body =
+        await c.req.json();
     } catch {
       return c.json(
         {
@@ -365,8 +435,6 @@ staffFestivalRoutes.post(
 
 /*
  * PATCH /api/staff/festivals/:festivalId
- *
- * Updates festival metadata and lifecycle flags.
  */
 staffFestivalRoutes.patch(
   "/:festivalId",
@@ -389,7 +457,8 @@ staffFestivalRoutes.patch(
     let body: unknown;
 
     try {
-      body = await c.req.json();
+      body =
+        await c.req.json();
     } catch {
       return c.json(
         {
@@ -713,7 +782,8 @@ staffFestivalRoutes.post(
     let body: unknown;
 
     try {
-      body = await c.req.json();
+      body =
+        await c.req.json();
     } catch {
       return c.json(
         {
@@ -725,13 +795,32 @@ staffFestivalRoutes.post(
       );
     }
 
+    if (
+      typeof body !==
+        "object" ||
+      body === null
+    ) {
+      return c.json(
+        {
+          ok: false,
+          message:
+            "Invalid request body.",
+        },
+        400,
+      );
+    }
+
+    const input =
+      body as Record<
+        string,
+        unknown
+      >;
+
     const name =
-      typeof (
-        body as Record<
-          string,
-          unknown
-        >
-      )?.name === "string"? (body as Record<string,unknown>).name.trim(): "";
+      typeof input.name ===
+      "string"
+        ? input.name.trim()
+        : "";
 
     if (!name) {
       return c.json(
@@ -830,13 +919,29 @@ staffFestivalRoutes.patch(
     let body: unknown;
 
     try {
-      body = await c.req.json();
+      body =
+        await c.req.json();
     } catch {
       return c.json(
         {
           ok: false,
           message:
             "Invalid JSON request body.",
+        },
+        400,
+      );
+    }
+
+    if (
+      typeof body !==
+        "object" ||
+      body === null
+    ) {
+      return c.json(
+        {
+          ok: false,
+          message:
+            "Invalid request body.",
         },
         400,
       );
@@ -872,6 +977,66 @@ staffFestivalRoutes.patch(
     return c.json({
       ok: true,
       specialMenu: updated,
+    });
+  },
+);
+
+/*
+ * GET /api/staff/festivals/:festivalId/menus/:specialMenuId/items
+ */
+staffFestivalRoutes.get(
+  "/:festivalId/menus/:specialMenuId/items",
+  async (c) => {
+    const staffUserId =
+      requireStaff(c);
+
+    if (
+      typeof staffUserId !==
+      "string"
+    ) {
+      return staffUserId;
+    }
+
+    const festivalId =
+      c.req.param(
+        "festivalId",
+      );
+
+    const specialMenuId =
+      c.req.param(
+        "specialMenuId",
+      );
+
+    const specialMenu =
+      await getSpecialMenuById(
+        c.env.DB,
+        specialMenuId,
+      );
+
+    if (
+      !specialMenu ||
+      specialMenu.festival_id !==
+        festivalId
+    ) {
+      return c.json(
+        {
+          ok: false,
+          message:
+            "Special menu not found.",
+        },
+        404,
+      );
+    }
+
+    const items =
+      await getAllSpecialMenuItems(
+        c.env.DB,
+        specialMenuId,
+      );
+
+    return c.json({
+      ok: true,
+      items,
     });
   },
 );
@@ -926,13 +1091,29 @@ staffFestivalRoutes.post(
     let body: unknown;
 
     try {
-      body = await c.req.json();
+      body =
+        await c.req.json();
     } catch {
       return c.json(
         {
           ok: false,
           message:
             "Invalid JSON request body.",
+        },
+        400,
+      );
+    }
+
+    if (
+      typeof body !==
+        "object" ||
+      body === null
+    ) {
+      return c.json(
+        {
+          ok: false,
+          message:
+            "Invalid request body.",
         },
         400,
       );
@@ -1028,8 +1209,6 @@ staffFestivalRoutes.post(
 
 /*
  * PATCH /api/staff/festivals/:festivalId/menus/:specialMenuId/items/:itemId
- *
- * Updates availability and/or special price.
  */
 staffFestivalRoutes.patch(
   "/:festivalId/menus/:specialMenuId/items/:itemId",
@@ -1083,7 +1262,8 @@ staffFestivalRoutes.patch(
     let body: unknown;
 
     try {
-      body = await c.req.json();
+      body =
+        await c.req.json();
     } catch {
       return c.json(
         {
@@ -1095,11 +1275,49 @@ staffFestivalRoutes.patch(
       );
     }
 
+    if (
+      typeof body !==
+        "object" ||
+      body === null
+    ) {
+      return c.json(
+        {
+          ok: false,
+          message:
+            "Invalid request body.",
+        },
+        400,
+      );
+    }
+
     const input =
       body as Record<
         string,
         unknown
       >;
+
+    const existingItems =
+      await getAllSpecialMenuItems(
+        c.env.DB,
+        specialMenuId,
+      );
+
+    const existingItem =
+      existingItems.find(
+        (item) =>
+          item.id === itemId,
+      );
+
+    if (!existingItem) {
+      return c.json(
+        {
+          ok: false,
+          message:
+            "Special menu item not found.",
+        },
+        404,
+      );
+    }
 
     let updatedItem =
       null;
@@ -1176,20 +1394,6 @@ staffFestivalRoutes.patch(
             "Provide available and/or specialPriceMinor.",
         },
         400,
-      );
-    }
-
-    if (
-      updatedItem.special_menu_id !==
-      specialMenuId
-    ) {
-      return c.json(
-        {
-          ok: false,
-          message:
-            "Special menu item does not belong to this special menu.",
-        },
-        404,
       );
     }
 

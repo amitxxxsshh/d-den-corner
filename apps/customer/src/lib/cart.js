@@ -43,3 +43,9 @@ export function calculateCartSubtotal(items) {
     0,
   );
 }
+
+export function formatCartPrice(priceMinor) {
+  const amount = Number(priceMinor || 0);
+
+  return `₹${(amount / 100).toFixed(2)}`;
+}

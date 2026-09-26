@@ -141,6 +141,58 @@ export default function MenuPageContent({ onItemSelect }) {
     selectedCategory,
   ]);
 
+  function handleRegularAdd(item) {
+    if (typeof onItemSelect !== "function") {
+      return;
+    }
+
+    onItemSelect(item);
+  }
+
+  function handleFestivalAdd(item) {
+    if (typeof onItemSelect !== "function") {
+      return;
+    }
+
+    onItemSelect({
+      id: item.menuItemId,
+      name: item.name,
+      description: item.description,
+
+      /*
+       * Display-only price.
+       * The API recalculates the actual order price
+       * from D1 during checkout.
+       */
+      price_minor:
+        item.specialPriceMinor,
+
+      available:
+        item.available,
+
+      festivalSpecial: true,
+
+      /*
+       * Parent special_menus.id.
+       * Required by the order API.
+       */
+      specialMenuId:
+        item.specialMenuId,
+
+      specialMenuItemId:
+        item.id,
+
+      specialMenuPriceMinor:
+        item.specialPriceMinor,
+
+      regularPriceMinor:
+        item.regularPriceMinor,
+
+      categoryId:
+        item.categoryId,
+    });
+  }
+
   if (loading) {
     return (
       <main className="min-h-screen bg-white">
@@ -173,50 +225,6 @@ export default function MenuPageContent({ onItemSelect }) {
     );
   }
 
-  function handleFestivalAdd(item) {
-    if (!onItemSelect) {
-      return;
-    }
-
-    onItemSelect({
-      id: item.menuItemId,
-      name: item.name,
-      description: item.description,
-
-      /*
-       * Display-only price.
-       * The API recalculates the actual order price
-       * from D1 during checkout.
-       */
-      price_minor:
-        item.specialPriceMinor,
-
-      available:
-        item.available,
-
-      festivalSpecial: true,
-
-      /*
-       * This is the parent special_menus.id.
-       * It is the value required by the order API.
-       */
-      specialMenuId:
-        item.specialMenuId,
-
-      specialMenuItemId:
-        item.id,
-
-      specialMenuPriceMinor:
-        item.specialPriceMinor,
-
-      regularPriceMinor:
-        item.regularPriceMinor,
-
-      categoryId:
-        item.categoryId,
-    });
-  }
-
   return (
     <main className="min-h-screen bg-white">
       {!festivalLoading &&
@@ -242,9 +250,7 @@ export default function MenuPageContent({ onItemSelect }) {
               type="search"
               value={search}
               onChange={(event) =>
-                setSearch(
-                  event.target.value,
-                )
+                setSearch(event.target.value)
               }
               placeholder="Search menu..."
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
@@ -260,8 +266,7 @@ export default function MenuPageContent({ onItemSelect }) {
                 }
                 className={[
                   "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition",
-                  selectedCategory ===
-                  "ALL"
+                  selectedCategory === "ALL"
                     ? "bg-gray-900 text-white"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200",
                 ].join(" ")}
@@ -316,9 +321,7 @@ export default function MenuPageContent({ onItemSelect }) {
                     key={item.id}
                     item={item}
                     onClick={() =>
-                      onItemSelect?.(
-                        item,
-                      )
+                      handleRegularAdd(item)
                     }
                   />
                 ),

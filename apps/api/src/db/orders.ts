@@ -222,6 +222,25 @@ export async function createOrder(
 
   let totalAmountMinor = 0;
 
+  /*
+   * Prepare all order items first.
+   *
+   * IMPORTANT:
+   * We only calculate/prepare them here.
+   * We do NOT insert them yet.
+   *
+   * The parent `orders` row must exist before
+   * any `order_items` row referencing it is inserted.
+   */
+  const preparedItems: Array<{
+    id: string;
+    menuItemId: string;
+    itemName: string;
+    unitPriceMinor: number;
+    quantity: number;
+    lineTotalMinor: number;
+  }> = [];
+
   for (const variant of orderVariants) {
     const menuItem =
       menuItemMap.get(
@@ -264,8 +283,7 @@ export async function createOrder(
 
       /*
        * If special_price_minor is NULL,
-       * the schema allows the special menu
-       * to use the regular menu price.
+       * the special menu uses the regular menu price.
        */
       unitPriceMinor =
         pricing.special_price_minor ===
@@ -285,88 +303,125 @@ export async function createOrder(
     totalAmountMinor +=
       lineTotalMinor;
 
-    const itemId =
-      crypto.randomUUID();
-
-    await execute(
-      db,
-      `
-        INSERT INTO order_items (
-          id,
-          order_id,
-          menu_item_id,
-          item_name_snapshot,
-          unit_price_minor,
-          quantity,
-          line_total_minor,
-          created_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      itemId,
-      orderId,
-      menuItem.id,
-      menuItem.name,
+    preparedItems.push({
+      id: crypto.randomUUID(),
+      menuItemId: menuItem.id,
+      itemName: menuItem.name,
       unitPriceMinor,
-      variant.quantity,
+      quantity: variant.quantity,
       lineTotalMinor,
-      createdAt,
-    );
-
-    createdItems.push({
-      id: itemId,
-      menu_item_id:
-        menuItem.id,
-      item_name_snapshot:
-        menuItem.name,
-      unit_price_minor:
-        unitPriceMinor,
-      quantity:
-        variant.quantity,
-      line_total_minor:
-        lineTotalMinor,
     });
   }
 
-  await execute(
-    db,
-    `
-      INSERT INTO orders (
-        id,
-        table_session_id,
-        customer_session_id,
-        status,
-        total_amount_minor,
-        created_at,
-        updated_at
-      )
-      VALUES (?, ?, ?, 'NEW', ?, ?, ?)
-    `,
-    orderId,
-    tableSessionId,
-    customerSessionId,
-    totalAmountMinor,
-    createdAt,
-    createdAt,
-  );
+  /*
+   * Build the CreatedOrderItem response objects.
+   */
+  for (const item of preparedItems) {
+    createdItems.push({
+      id: item.id,
+      menu_item_id:
+        item.menuItemId,
+      item_name_snapshot:
+        item.itemName,
+      unit_price_minor:
+        item.unitPriceMinor,
+      quantity:
+        item.quantity,
+      line_total_minor:
+        item.lineTotalMinor,
+    });
+  }
 
-  await execute(
-    db,
-    `
-      INSERT INTO order_status_history (
-        id,
-        order_id,
-        from_status,
-        to_status,
-        changed_by_user_id,
-        created_at
+  /*
+   * IMPORTANT DATABASE ORDER
+   *
+   * 1. orders
+   * 2. order_items
+   * 3. order_status_history
+   *
+   * All three writes are executed in one D1 batch.
+   *
+   * This guarantees that we don't end up with:
+   * - an order without items
+   * - items without an order
+   * - an order without its initial status history
+   */
+  const statements = [
+    db
+      .prepare(
+        `
+          INSERT INTO orders (
+            id,
+            table_session_id,
+            customer_session_id,
+            status,
+            total_amount_minor,
+            created_at,
+            updated_at
+          )
+          VALUES (?, ?, ?, 'NEW', ?, ?, ?)
+        `,
       )
-      VALUES (?, ?, NULL, 'NEW', NULL, ?)
-    `,
-    crypto.randomUUID(),
-    orderId,
-    createdAt,
-  );
+      .bind(
+        orderId,
+        tableSessionId,
+        customerSessionId,
+        totalAmountMinor,
+        createdAt,
+        createdAt,
+      ),
+
+    ...preparedItems.map((item) =>
+      db
+        .prepare(
+          `
+            INSERT INTO order_items (
+              id,
+              order_id,
+              menu_item_id,
+              item_name_snapshot,
+              unit_price_minor,
+              quantity,
+              line_total_minor,
+              created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+        )
+        .bind(
+          item.id,
+          orderId,
+          item.menuItemId,
+          item.itemName,
+          item.unitPriceMinor,
+          item.quantity,
+          item.lineTotalMinor,
+          createdAt,
+        ),
+    ),
+
+    db
+      .prepare(
+        `
+          INSERT INTO order_status_history (
+            id,
+            order_id,
+            from_status,
+            to_status,
+            changed_by_user_id,
+            created_at
+          )
+          VALUES (?, ?, NULL, 'NEW', NULL, ?)
+        `,
+      )
+      .bind(
+        crypto.randomUUID(),
+        orderId,
+        createdAt,
+      ),
+  ];
+
+  await db.batch(statements);
 
   return {
     id: orderId,

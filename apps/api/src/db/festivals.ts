@@ -43,6 +43,32 @@ export async function getFestivalById(
   );
 }
 
+export async function getAllFestivals(
+  db: D1Database,
+): Promise<FestivalRow[]> {
+  return queryMany<FestivalRow>(
+    db,
+    `
+      SELECT
+        id,
+        category,
+        name,
+        description,
+        start_date,
+        end_date,
+        active,
+        archived,
+        created_at,
+        updated_at
+      FROM festivals
+      ORDER BY
+        archived ASC,
+        start_date DESC,
+        name ASC
+    `,
+  );
+}
+
 export async function getActiveFestivals(
   db: D1Database,
 ): Promise<FestivalRow[]> {
