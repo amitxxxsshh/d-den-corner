@@ -161,8 +161,7 @@ export async function revokeQRToken(
   db: D1Database,
   qrTokenId: string,
 ): Promise<QRTokenRow | null> {
-  const now =
-    new Date().toISOString();
+  const now = new Date().toISOString();
 
   await execute(
     db,
@@ -199,7 +198,11 @@ export async function revokeQRToken(
 /*
  * Creates/replaces the physical QR assigned to a table.
  *
- * This should NOT be called during normal table opening.
+ * IMPORTANT:
+ * A newly generated QR starts INACTIVE.
+ *
+ * The QR becomes active only when the table is opened.
+ * This prevents a closed table from having a usable QR.
  */
 export async function createQRToken(
   db: D1Database,
@@ -208,11 +211,10 @@ export async function createQRToken(
   row: QRTokenRow;
   token: string;
 }> {
-  const existing =
-    await getCurrentQRTokenForTable(
-      db,
-      tableId,
-    );
+  const existing = await getCurrentQRTokenForTable(
+    db,
+    tableId,
+  );
 
   if (existing) {
     await revokeQRToken(
@@ -221,17 +223,13 @@ export async function createQRToken(
     );
   }
 
-  const token =
-    generateOpaqueToken(32);
+  const token = generateOpaqueToken(32);
 
-  const tokenHash =
-    await sha256Hex(token);
+  const tokenHash = await sha256Hex(token);
 
-  const id =
-    crypto.randomUUID();
+  const id = crypto.randomUUID();
 
-  const now =
-    new Date().toISOString();
+  const now = new Date().toISOString();
 
   await execute(
     db,
@@ -248,7 +246,7 @@ export async function createQRToken(
         ?,
         ?,
         ?,
-        1,
+        0,
         ?,
         NULL
       )
@@ -259,23 +257,22 @@ export async function createQRToken(
     now,
   );
 
-  const row =
-    await queryOne<QRTokenRow>(
-      db,
-      `
-        SELECT
-          id,
-          table_id,
-          token_hash,
-          active,
-          created_at,
-          revoked_at
-        FROM qr_tokens
-        WHERE id = ?
-        LIMIT 1
-      `,
-      id,
-    );
+  const row = await queryOne<QRTokenRow>(
+    db,
+    `
+      SELECT
+        id,
+        table_id,
+        token_hash,
+        active,
+        created_at,
+        revoked_at
+      FROM qr_tokens
+      WHERE id = ?
+      LIMIT 1
+    `,
+    id,
+  );
 
   if (!row) {
     throw new Error(

@@ -7,7 +7,12 @@ import { getCurrentFestivals } from "../../lib/festivals";
 import FestivalMenu from "./FestivalMenu";
 import MenuItemCard from "./MenuItemCard";
 
-export default function MenuPageContent({ onItemSelect }) {
+export default function MenuPageContent({
+  onItemSelect,
+}) {
+  const orderingEnabled =
+    typeof onItemSelect === "function";
+
   const [menu, setMenu] = useState({
     categories: [],
     items: [],
@@ -37,7 +42,9 @@ export default function MenuPageContent({ onItemSelect }) {
         }
 
         setMenu({
-          categories: Array.isArray(data?.categories)
+          categories: Array.isArray(
+            data?.categories,
+          )
             ? data.categories
             : [],
           items: Array.isArray(data?.items)
@@ -142,7 +149,7 @@ export default function MenuPageContent({ onItemSelect }) {
   ]);
 
   function handleRegularAdd(item) {
-    if (typeof onItemSelect !== "function") {
+    if (!orderingEnabled) {
       return;
     }
 
@@ -150,7 +157,7 @@ export default function MenuPageContent({ onItemSelect }) {
   }
 
   function handleFestivalAdd(item) {
-    if (typeof onItemSelect !== "function") {
+    if (!orderingEnabled) {
       return;
     }
 
@@ -158,36 +165,18 @@ export default function MenuPageContent({ onItemSelect }) {
       id: item.menuItemId,
       name: item.name,
       description: item.description,
-
-      /*
-       * Display-only price.
-       * The API recalculates the actual order price
-       * from D1 during checkout.
-       */
       price_minor:
         item.specialPriceMinor,
-
-      available:
-        item.available,
-
+      available: item.available,
       festivalSpecial: true,
-
-      /*
-       * Parent special_menus.id.
-       * Required by the order API.
-       */
       specialMenuId:
         item.specialMenuId,
-
       specialMenuItemId:
         item.id,
-
       specialMenuPriceMinor:
         item.specialPriceMinor,
-
       regularPriceMinor:
         item.regularPriceMinor,
-
       categoryId:
         item.categoryId,
     });
@@ -231,7 +220,11 @@ export default function MenuPageContent({ onItemSelect }) {
       festivals.length > 0 ? (
         <FestivalMenu
           festivals={festivals}
-          onAdd={handleFestivalAdd}
+          onAdd={
+            orderingEnabled
+              ? handleFestivalAdd
+              : undefined
+          }
         />
       ) : null}
 
@@ -320,8 +313,13 @@ export default function MenuPageContent({ onItemSelect }) {
                   <MenuItemCard
                     key={item.id}
                     item={item}
-                    onClick={() =>
-                      handleRegularAdd(item)
+                    onClick={
+                      orderingEnabled
+                        ? () =>
+                            handleRegularAdd(
+                              item,
+                            )
+                        : undefined
                     }
                   />
                 ),

@@ -6,20 +6,30 @@ import { useRouter } from "next/navigation";
 import CustomerHeader from "../customer/CustomerHeader";
 import LoadingState from "../customer/LoadingState";
 import ErrorState from "../customer/ErrorState";
+import { useCustomerSession } from "../customer/CustomerSessionContext";
 import { joinTableWithQRToken } from "../../lib/qr";
 
 export default function MenuJoin({ token }) {
   const router = useRouter();
 
-  const [status, setStatus] = useState("joining");
-  const [errorMessage, setErrorMessage] = useState("");
+  const {
+    refreshSession,
+  } = useCustomerSession();
+
+  const [status, setStatus] =
+    useState("joining");
+
+  const [errorMessage, setErrorMessage] =
+    useState("");
 
   useEffect(() => {
     if (!token) {
       setStatus("error");
+
       setErrorMessage(
-        "No QR code token was provided. Please scan the QR code on your table.",
+        "No ordering link was provided. Please use the ordering link for your table.",
       );
+
       return;
     }
 
@@ -35,6 +45,21 @@ export default function MenuJoin({ token }) {
           return;
         }
 
+        /*
+         * Refresh the existing global customer
+         * session so /menu immediately enters
+         * ordering mode.
+         */
+        await refreshSession();
+
+        if (cancelled) {
+          return;
+        }
+
+        /*
+         * Remove the secret token from the
+         * visible URL and browser history.
+         */
         window.history.replaceState(
           {},
           "",
@@ -48,9 +73,10 @@ export default function MenuJoin({ token }) {
         }
 
         setStatus("error");
+
         setErrorMessage(
           error?.message ||
-            "We could not connect you to this table. Please scan the QR code again.",
+            "We could not connect you to this table. Please use the ordering link for your table again.",
         );
       }
     }
@@ -60,56 +86,50 @@ export default function MenuJoin({ token }) {
     return () => {
       cancelled = true;
     };
-  }, [router, token]);
+  }, [
+    router,
+    token,
+    refreshSession,
+  ]);
 
   if (status === "joining") {
     return (
-      <main className="min-h-screen bg-white">
-        <CustomerHeader
-          title="D Den Corner"
-          subtitle="Connecting to your table"
-        />
+      <>
+        <CustomerHeader />
 
-        <LoadingState message="Joining your table..." />
-      </main>
+        <LoadingState
+          message="Connecting you to your table..."
+        />
+      </>
     );
   }
 
   if (status === "error") {
     return (
-      <main className="min-h-screen bg-white">
-        <CustomerHeader
-          title="D Den Corner"
-          subtitle="Table connection"
-        />
+      <>
+        <CustomerHeader />
 
         <ErrorState
-          title="Unable to join table"
+          title="Unable to connect"
           message={errorMessage}
-          onRetry={() => window.location.reload()}
         />
-      </main>
+      </>
     );
   }
 
   return (
     <main className="min-h-screen bg-white">
-      <CustomerHeader
-        title="D Den Corner"
-        subtitle="Welcome to our menu"
-      />
-
-      <section className="px-4 py-6">
-        <div className="rounded-2xl bg-gray-50 p-5">
-          <p className="text-sm font-semibold">
-            Menu
-          </p>
-
-          <p className="mt-2 text-sm text-gray-500">
+      <div className="flex min-h-screen items-center justify-center px-6">
+        <div className="text-center">
+          <p className="text-lg font-semibold text-zinc-900">
             Your table session is active.
           </p>
+
+          <p className="mt-2 text-sm text-zinc-500">
+            Opening the ordering menu...
+          </p>
         </div>
-      </section>
+      </div>
     </main>
   );
 }

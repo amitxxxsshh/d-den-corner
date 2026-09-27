@@ -1,9 +1,5 @@
 "use client";
 
-import {
-  QRCodeSVG,
-} from "qrcode.react";
-
 export default function TableCard({
   table,
   generatedQR,
@@ -11,20 +7,15 @@ export default function TableCard({
   onOpen,
   onClose,
   onGenerateQR,
-  onRevokeQR,
 }) {
   const isOpen =
-    Boolean(
-      table.activeSession,
-    );
+    Boolean(table.activeSession);
 
   const hasQR =
     Boolean(table.qr);
 
   const qrIsActive =
-    Boolean(
-      table.qr?.active,
-    );
+    Boolean(table.qr?.active);
 
   return (
     <article className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm">
@@ -46,9 +37,7 @@ export default function TableCard({
               : "bg-zinc-100 text-zinc-500"
           }`}
         >
-          {isOpen
-            ? "OPEN"
-            : "CLOSED"}
+          {isOpen ? "OPEN" : "CLOSED"}
         </span>
       </div>
 
@@ -70,7 +59,7 @@ export default function TableCard({
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="font-semibold text-zinc-900">
-              Fixed table QR
+              Ordering link
             </p>
 
             <p className="mt-1 text-xs text-zinc-500">
@@ -78,7 +67,7 @@ export default function TableCard({
                 ? qrIsActive
                   ? "Active and usable"
                   : "Inactive until table is opened"
-                : "No QR assigned"}
+                : "No ordering link assigned"}
             </p>
           </div>
 
@@ -137,75 +126,55 @@ export default function TableCard({
               ? "Opening table..."
               : hasQR
                 ? "Open table"
-                : "Assign QR first"}
+                : "Assign ordering link first"}
           </button>
         )}
       </div>
 
-      {!hasQR ? (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() =>
-            onGenerateQR(table.id)
-          }
-          className="mt-3 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-800 disabled:opacity-50"
-        >
-          Assign fixed QR
-        </button>
-      ) : (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() =>
-            onGenerateQR(table.id)
-          }
-          className="mt-3 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-600 disabled:opacity-50"
-        >
-          Replace physical QR
-        </button>
-      )}
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() =>
+          onGenerateQR(table.id)
+        }
+        className="mt-3 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-800 disabled:opacity-50"
+      >
+        {hasQR
+          ? "Replace ordering link"
+          : "Create ordering link"}
+      </button>
 
-      {table.qr && !generatedQR ? (
+      {table.qr ? (
         <div className="mt-3 rounded-2xl bg-zinc-50 p-4">
           <p className="text-center text-xs text-zinc-500">
-            This is the fixed QR assigned to this table.
+            This ordering link is permanently associated
+            with this table until replaced.
           </p>
 
           <p className="mt-2 text-center text-xs text-zinc-400">
-            Keep the physical QR on this table. Opening and closing the table only changes whether it can be used.
+            Create the physical QR code yourself in Canva
+            using the ordering link.
           </p>
         </div>
       ) : null}
 
       {generatedQR ? (
         <div className="mt-5 rounded-2xl bg-zinc-50 p-5">
-          <div className="flex justify-center">
-            <div className="rounded-2xl bg-white p-4 shadow-sm">
-              <QRCodeSVG
-                value={
-                  generatedQR.url
-                }
-                size={220}
-                level="M"
-                includeMargin
-              />
-            </div>
-          </div>
-
-          <p className="mt-4 text-center text-sm font-bold text-zinc-900">
+          <p className="text-center text-sm font-bold text-zinc-900">
             {hasQR
-              ? "Replacement QR generated"
-              : "Fixed QR assigned"}
+              ? "Replacement ordering link generated"
+              : "Ordering link created"}
           </p>
 
           <p className="mt-1 text-center text-xs text-zinc-500">
-            Print this QR and permanently place it on this table.
+            Copy this link into your Canva QR code.
           </p>
 
-          <p className="mt-3 break-all text-center text-xs text-zinc-400">
-            {generatedQR.url}
-          </p>
+          <div className="mt-4 rounded-xl bg-white p-4">
+            <p className="break-all text-center text-xs text-zinc-700">
+              {generatedQR.url}
+            </p>
+          </div>
 
           <div className="mt-4 flex gap-3">
             <button
@@ -231,12 +200,13 @@ export default function TableCard({
               }
               className="flex-1 rounded-xl bg-zinc-950 px-4 py-3 text-sm font-semibold text-white"
             >
-              Open menu
+              Test link
             </button>
           </div>
 
           <p className="mt-3 text-center text-xs text-zinc-400">
-            The raw QR token is shown only during generation. The database stores its hash.
+            The secret token is shown only when the link is
+            created or replaced.
           </p>
         </div>
       ) : null}

@@ -7,37 +7,23 @@ import {
   getMenuItemById,
 } from "../db/menu";
 
-import {
-  getCustomerSessionContext,
-} from "../utils/customer-session";
-
 import type { Bindings } from "../types/env";
 
 const menuRoutes =
   new Hono<{ Bindings: Bindings }>();
 
-async function requireCustomerSession(
-  c: Parameters<
-    typeof getCustomerSessionContext
-  >[0],
-) {
-  return getCustomerSessionContext(c);
-}
+/*
+ * Public menu routes.
+ *
+ * These routes are intentionally readable without
+ * a customer session. The customer website can show
+ * the menu publicly.
+ *
+ * Ordering itself remains protected by the order API,
+ * which requires a valid customer session.
+ */
 
 menuRoutes.get("/", async (c) => {
-  const session =
-    await requireCustomerSession(c);
-
-  if (!session) {
-    return c.json(
-      {
-        ok: false,
-        message: "Customer session is required.",
-      },
-      401,
-    );
-  }
-
   const [
     categories,
     items,
@@ -56,20 +42,6 @@ menuRoutes.get("/", async (c) => {
 menuRoutes.get(
   "/categories",
   async (c) => {
-    const session =
-      await requireCustomerSession(c);
-
-    if (!session) {
-      return c.json(
-        {
-          ok: false,
-          message:
-            "Customer session is required.",
-        },
-        401,
-      );
-    }
-
     const categories =
       await getActiveMenuCategories(
         c.env.DB,
@@ -85,20 +57,6 @@ menuRoutes.get(
 menuRoutes.get(
   "/items/:id",
   async (c) => {
-    const session =
-      await requireCustomerSession(c);
-
-    if (!session) {
-      return c.json(
-        {
-          ok: false,
-          message:
-            "Customer session is required.",
-        },
-        401,
-      );
-    }
-
     const id = c.req.param("id");
 
     const item =
@@ -132,20 +90,6 @@ menuRoutes.get(
 menuRoutes.get(
   "/search",
   async (c) => {
-    const session =
-      await requireCustomerSession(c);
-
-    if (!session) {
-      return c.json(
-        {
-          ok: false,
-          message:
-            "Customer session is required.",
-        },
-        401,
-      );
-    }
-
     const query =
       c.req.query("q")?.trim() || "";
 
@@ -184,20 +128,6 @@ menuRoutes.get(
 menuRoutes.get(
   "/categories/:categoryId/items",
   async (c) => {
-    const session =
-      await requireCustomerSession(c);
-
-    if (!session) {
-      return c.json(
-        {
-          ok: false,
-          message:
-            "Customer session is required.",
-        },
-        401,
-      );
-    }
-
     const categoryId =
       c.req.param("categoryId");
 
