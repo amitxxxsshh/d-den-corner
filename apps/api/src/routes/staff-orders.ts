@@ -20,16 +20,17 @@ const staffOrderRoutes =
     Bindings: Bindings;
   }>();
 
-function getStaffUserId(
-  c: Context<{
-    Bindings: Bindings;
-  }>,
+function getAuthenticatedStaffUserId(
+  c: Context,
 ): string | null {
-  return (
-    c.req.header(
-      "X-Staff-User-Id",
-    ) || null
-  );
+  const userId = (
+    c as any
+  ).get("staffUserId");
+
+  return typeof userId ===
+    "string"
+    ? userId
+    : null;
 }
 
 staffOrderRoutes.get(
@@ -66,14 +67,12 @@ staffOrderRoutes.get(
 
             return {
               ...order,
-
               table: table
                 ? {
                     id: table.id,
                     name: table.name,
                   }
                 : null,
-
               items,
             };
           },
@@ -138,17 +137,14 @@ staffOrderRoutes.get(
 
     return c.json({
       ok: true,
-
       order: {
         ...order,
-
         table: table
           ? {
               id: table.id,
               name: table.name,
             }
           : null,
-
         items,
         history,
       },
@@ -160,7 +156,9 @@ staffOrderRoutes.post(
   "/:orderId/status",
   async (c) => {
     const staffUserId =
-      getStaffUserId(c);
+      getAuthenticatedStaffUserId(
+        c,
+      );
 
     if (!staffUserId) {
       return c.json(

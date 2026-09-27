@@ -38,9 +38,7 @@ function getStaffUserId(
   }>,
 ): string | null {
   return (
-    c.req.header(
-      "X-Staff-User-Id",
-    ) || null
+    ((c as any).get("staffUserId") as string | undefined) || null
   );
 }
 

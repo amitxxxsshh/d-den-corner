@@ -8,6 +8,12 @@ import {
 } from "react";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+import {
+  getCurrentStaff,
+  logoutStaff,
+} from "./../lib/auth";
 
 import {
   advanceOrderStatus,
@@ -15,10 +21,6 @@ import {
 } from "../lib/orders";
 
 import StaffOrderCard from "../components/orders/StaffOrderCard";
-
-const STAFF_USER_ID =
-  process.env.NEXT_PUBLIC_STAFF_USER_ID ||
-  "";
 
 const STATUS_ORDER = [
   "NEW",
@@ -28,6 +30,8 @@ const STATUS_ORDER = [
 ];
 
 export default function Home() {
+  const router = useRouter();
+
   const [orders, setOrders] =
     useState([]);
 
@@ -40,25 +44,16 @@ export default function Home() {
   const [busyOrderId, setBusyOrderId] =
     useState(null);
 
+  const [staff, setStaff] =
+    useState(null);
+
   const loadOrders =
     useCallback(async () => {
-      if (!STAFF_USER_ID) {
-        setError(
-          "NEXT_PUBLIC_STAFF_USER_ID is not configured.",
-        );
-
-        setLoading(false);
-
-        return;
-      }
-
       try {
         setError("");
 
         const response =
-          await getStaffOrders(
-            STAFF_USER_ID,
-          );
+          await getStaffOrders();
 
         setOrders(
           response.orders || [],
@@ -75,7 +70,40 @@ export default function Home() {
     }, []);
 
   useEffect(() => {
-    loadOrders();
+    let mounted = true;
+
+    async function initialize() {
+      try {
+        const response =
+          await getCurrentStaff();
+
+        if (!mounted) {
+          return;
+        }
+
+        setStaff(response.user);
+
+        await loadOrders();
+      } catch {
+        if (mounted) {
+          router.replace(
+            "/login",
+          );
+        }
+      }
+    }
+
+    initialize();
+
+    return () => {
+      mounted = false;
+    };
+  }, [router, loadOrders]);
+
+  useEffect(() => {
+    if (!staff) {
+      return;
+    }
 
     const interval =
       window.setInterval(
@@ -88,7 +116,18 @@ export default function Home() {
         interval,
       );
     };
-  }, [loadOrders]);
+  }, [staff, loadOrders]);
+
+  async function handleLogout() {
+    try {
+      await logoutStaff();
+    } finally {
+      router.replace(
+        "/login",
+      );
+      router.refresh();
+    }
+  }
 
   async function handleAdvance(
     orderId,
@@ -100,7 +139,6 @@ export default function Home() {
       const response =
         await advanceOrderStatus(
           orderId,
-          STAFF_USER_ID,
         );
 
       setOrders(
@@ -146,6 +184,16 @@ export default function Home() {
       );
     }, [orders]);
 
+  if (!staff) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-zinc-100">
+        <div className="rounded-2xl bg-white px-6 py-5 text-sm text-zinc-500 shadow-sm">
+          Checking authentication...
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-zinc-100">
       <header className="border-b border-zinc-200 bg-white">
@@ -158,6 +206,12 @@ export default function Home() {
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-zinc-950">
               Staff Orders
             </h1>
+
+            <p className="mt-1 text-xs text-zinc-500">
+              {staff.email}
+              {" · "}
+              {staff.role}
+            </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -184,6 +238,16 @@ export default function Home() {
               className="rounded-xl bg-zinc-950 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
             >
               Refresh
+            </button>
+
+            <button
+              type="button"
+              onClick={
+                handleLogout
+              }
+              className="rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
+            >
+              Logout
             </button>
           </div>
         </div>

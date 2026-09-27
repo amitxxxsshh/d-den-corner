@@ -31,16 +31,16 @@ const staffTableRoutes =
   }>();
 
 function requireStaff(
-  c: Context<{
-    Bindings: Bindings;
-  }>,
+  c: Context,
 ): Response | null {
-  const staffUserId =
-    c.req.header(
-      "X-Staff-User-Id",
-    );
+  const staffUserId = (
+    c as any
+  ).get("staffUserId");
 
-  if (!staffUserId) {
+  if (
+    typeof staffUserId !==
+    "string"
+  ) {
     return c.json(
       {
         ok: false,
@@ -56,11 +56,6 @@ function requireStaff(
 
 /*
  * GET ALL TABLES
- *
- * Important:
- * We return the current QR even when it is inactive.
- *
- * The QR is physically fixed to the table.
  */
 staffTableRoutes.get(
   "/",
@@ -100,7 +95,6 @@ staffTableRoutes.get(
                           c.env.DB,
                           table.id,
                         ),
-
                         getCurrentQRTokenForTable(
                           c.env.DB,
                           table.id,
@@ -109,15 +103,14 @@ staffTableRoutes.get(
 
                     return {
                       ...table,
-
                       activeSession:
                         session,
-
                       qr: qr
                         ? {
                             id: qr.id,
                             active:
-                              qr.active === 1,
+                              qr.active ===
+                              1,
                             createdAt:
                               qr.created_at,
                           }
@@ -143,15 +136,6 @@ staffTableRoutes.get(
   },
 );
 
-/*
- * OPEN TABLE
- *
- * This:
- * 1. Starts/reuses the active table session.
- * 2. Activates the existing fixed QR.
- *
- * It does NOT generate a new QR.
- */
 staffTableRoutes.post(
   "/:tableId/open",
   async (c) => {
@@ -163,9 +147,7 @@ staffTableRoutes.post(
     }
 
     const tableId =
-      c.req.param(
-        "tableId",
-      );
+      c.req.param("tableId");
 
     const table =
       await getTableById(
@@ -238,27 +220,15 @@ staffTableRoutes.post(
       session,
       qr: activatedQR
         ? {
-            id:
-              activatedQR.id,
+            id: activatedQR.id,
             active:
-              activatedQR.active ===
-              1,
+              activatedQR.active === 1,
           }
         : null,
     });
   },
 );
 
-/*
- * CLOSE TABLE
- *
- * This:
- * 1. Closes the table session.
- * 2. Deactivates the SAME fixed QR.
- *
- * The physical QR remains on the table,
- * but scanning it will now be rejected.
- */
 staffTableRoutes.post(
   "/:tableId/close",
   async (c) => {
@@ -270,9 +240,7 @@ staffTableRoutes.post(
     }
 
     const tableId =
-      c.req.param(
-        "tableId",
-      );
+      c.req.param("tableId");
 
     const table =
       await getTableById(
@@ -333,31 +301,18 @@ staffTableRoutes.post(
 
     return c.json({
       ok: true,
-
       session: closed,
-
       qr: deactivatedQR
         ? {
-            id:
-              deactivatedQR.id,
+            id: deactivatedQR.id,
             active:
-              deactivatedQR.active ===
-              1,
+              deactivatedQR.active === 1,
           }
         : null,
     });
   },
 );
 
-/*
- * GENERATE / REPLACE QR
- *
- * This is NOT the normal "open table" action.
- *
- * Use this only when:
- * - assigning a QR for the first time
- * - replacing a damaged/lost QR
- */
 staffTableRoutes.post(
   "/:tableId/qr",
   async (c) => {
@@ -369,9 +324,7 @@ staffTableRoutes.post(
     }
 
     const tableId =
-      c.req.param(
-        "tableId",
-      );
+      c.req.param("tableId");
 
     const table =
       await getTableById(
@@ -411,22 +364,13 @@ staffTableRoutes.post(
     return c.json(
       {
         ok: true,
-
         qr: {
-          id:
-            result.row.id,
-
+          id: result.row.id,
           tableId,
-
-          token:
-            result.token,
-
+          token: result.token,
           url,
-
           active:
-            result.row.active ===
-            1,
-
+            result.row.active === 1,
           createdAt:
             result.row.created_at,
         },
@@ -436,12 +380,6 @@ staffTableRoutes.post(
   },
 );
 
-/*
- * REVOKE / REMOVE QR
- *
- * This is a replacement/administrative operation.
- * It is NOT used when closing a table.
- */
 staffTableRoutes.post(
   "/:tableId/qr/:qrId/revoke",
   async (c) => {
@@ -453,14 +391,10 @@ staffTableRoutes.post(
     }
 
     const tableId =
-      c.req.param(
-        "tableId",
-      );
+      c.req.param("tableId");
 
     const qrId =
-      c.req.param(
-        "qrId",
-      );
+      c.req.param("qrId");
 
     const table =
       await getTableById(

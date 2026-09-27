@@ -5,11 +5,16 @@ import qrRoutes from "./routes/qr";
 import sessionRoutes from "./routes/sessions";
 import menuRoutes from "./routes/menu";
 import orderRoutes from "./routes/orders";
+import staffAuthRoutes from "./routes/staff-auth";
 import staffOrderRoutes from "./routes/staff-orders";
 import staffTableRoutes from "./routes/staff-tables";
 import festivalRoutes from "./routes/festivals";
 import staffFestivalRoutes from "./routes/staff-festivals";
 import staffMenuRoutes from "./routes/staff-menu";
+
+import {
+  getStaffUser,
+} from "./utils/staff-auth";
 
 import type { Bindings } from "./types/env";
 
@@ -29,7 +34,9 @@ app.use("/api/*", async (c, next) => {
     origin: (requestOrigin) => {
       if (
         requestOrigin &&
-        allowedOrigins.includes(requestOrigin)
+        allowedOrigins.includes(
+          requestOrigin,
+        )
       ) {
         return requestOrigin;
       }
@@ -46,7 +53,6 @@ app.use("/api/*", async (c, next) => {
 
     allowHeaders: [
       "Content-Type",
-      "X-Staff-User-Id",
     ],
 
     credentials: true,
@@ -55,41 +61,116 @@ app.use("/api/*", async (c, next) => {
   return middleware(c, next);
 });
 
-app.get("/health", (c) =>
-  c.json({
-    ok: true,
-    service: "d-den-corner-api",
-  })
+/*
+ * Every staff endpoint requires a valid
+ * server-side staff session.
+ *
+ * Login/logout/me remain public.
+ */
+app.use(
+  "/api/staff/*",
+  async (c, next) => {
+    if (
+      c.req.method === "OPTIONS"
+    ) {
+      return next();
+    }
+
+    if (
+      c.req.path.startsWith(
+        "/api/staff/auth/",
+      )
+    ) {
+      return next();
+    }
+
+    const user =
+      await getStaffUser(c);
+
+    if (!user) {
+      return c.json(
+        {
+          ok: false,
+          message:
+            "Staff authentication is required.",
+        },
+        401,
+      );
+    }
+
+    /*
+     * Make the authenticated user ID
+     * available to downstream staff routes.
+     *
+     * This is server-side context, NOT
+     * a client-supplied authentication header.
+     */
+    (c as any).set("staffUserId",
+      user.id,
+    );
+
+    return next();
+  },
 );
 
-app.route("/api/qr", qrRoutes);
-app.route("/api/sessions", sessionRoutes);
-app.route("/api/menu", menuRoutes);
-app.route("/api/orders", orderRoutes);
+app.get(
+  "/health",
+  (c) =>
+    c.json({
+      ok: true,
+      service:
+        "d-den-corner-api",
+    }),
+);
+
+app.route(
+  "/api/staff/auth",
+  staffAuthRoutes,
+);
+
+app.route(
+  "/api/qr",
+  qrRoutes,
+);
+
+app.route(
+  "/api/sessions",
+  sessionRoutes,
+);
+
+app.route(
+  "/api/menu",
+  menuRoutes,
+);
+
+app.route(
+  "/api/orders",
+  orderRoutes,
+);
 
 app.route(
   "/api/staff/orders",
-  staffOrderRoutes
+  staffOrderRoutes,
 );
 
 app.route(
   "/api/staff/tables",
-  staffTableRoutes
+  staffTableRoutes,
 );
 
 app.route(
   "/api/staff/festivals",
-  staffFestivalRoutes
+  staffFestivalRoutes,
 );
 
 app.route(
   "/api/staff/menu",
-  staffMenuRoutes
+  staffMenuRoutes,
 );
 
 app.route(
   "/api/festivals",
-  festivalRoutes
+  festivalRoutes,
 );
 
 export default app;

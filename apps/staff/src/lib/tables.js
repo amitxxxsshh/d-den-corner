@@ -1,22 +1,13 @@
 import { apiRequest } from "./api";
 
-export async function getStaffTables(
-  staffUserId,
-) {
+export async function getStaffTables() {
   return apiRequest(
     "/api/staff/tables",
-    {
-      headers: {
-        "X-Staff-User-Id":
-          staffUserId,
-      },
-    },
   );
 }
 
 export async function openTable(
   tableId,
-  staffUserId,
 ) {
   return apiRequest(
     `/api/staff/tables/${encodeURIComponent(
@@ -24,17 +15,12 @@ export async function openTable(
     )}/open`,
     {
       method: "POST",
-      headers: {
-        "X-Staff-User-Id":
-          staffUserId,
-      },
     },
   );
 }
 
 export async function closeTable(
   tableId,
-  staffUserId,
 ) {
   return apiRequest(
     `/api/staff/tables/${encodeURIComponent(
@@ -42,17 +28,12 @@ export async function closeTable(
     )}/close`,
     {
       method: "POST",
-      headers: {
-        "X-Staff-User-Id":
-          staffUserId,
-      },
     },
   );
 }
 
 export async function generateTableQR(
   tableId,
-  staffUserId,
 ) {
   return apiRequest(
     `/api/staff/tables/${encodeURIComponent(
@@ -60,10 +41,6 @@ export async function generateTableQR(
     )}/qr`,
     {
       method: "POST",
-      headers: {
-        "X-Staff-User-Id":
-          staffUserId,
-      },
     },
   );
 }
@@ -71,7 +48,6 @@ export async function generateTableQR(
 export async function revokeTableQR(
   tableId,
   qrId,
-  staffUserId,
 ) {
   return apiRequest(
     `/api/staff/tables/${encodeURIComponent(
@@ -81,10 +57,6 @@ export async function revokeTableQR(
     )}/revoke`,
     {
       method: "POST",
-      headers: {
-        "X-Staff-User-Id":
-          staffUserId,
-      },
     },
   );
 }

@@ -1,31 +1,20 @@
 import { apiRequest } from "./api";
 
-const STAFF_USER_ID =
-  process.env.NEXT_PUBLIC_STAFF_USER_ID || "";
-
-function staffHeaders() {
-  return {
-    "X-Staff-User-Id": STAFF_USER_ID,
-  };
-}
-
 export async function getFestivals() {
   const data = await apiRequest(
     "/api/staff/festivals",
-    {
-      headers: staffHeaders(),
-    },
   );
 
   return data?.festivals || [];
 }
 
-export async function createFestival(input) {
+export async function createFestival(
+  input,
+) {
   return apiRequest(
     "/api/staff/festivals",
     {
       method: "POST",
-      headers: staffHeaders(),
       body: JSON.stringify(input),
     },
   );
@@ -41,7 +30,6 @@ export async function updateFestival(
     )}`,
     {
       method: "PATCH",
-      headers: staffHeaders(),
       body: JSON.stringify(input),
     },
   );
@@ -54,38 +42,44 @@ export async function getFestival(
     `/api/staff/festivals/${encodeURIComponent(
       festivalId,
     )}`,
-    {
-      headers: staffHeaders(),
-    },
   );
 }
 
 export async function getSpecialMenus(
   festivalId,
 ) {
-  const data = await getFestival(
-    festivalId,
-  );
+  const data =
+    await getFestival(
+      festivalId,
+    );
 
-  return data?.festival?.specialMenus || [];
+  return (
+    data?.festival
+      ?.specialMenus || []
+  );
 }
 
 export async function createSpecialMenu(
   festivalId,
   input,
 ) {
-  const data = await apiRequest(
-    `/api/staff/festivals/${encodeURIComponent(
-      festivalId,
-    )}/menus`,
-    {
-      method: "POST",
-      headers: staffHeaders(),
-      body: JSON.stringify(input),
-    },
-  );
+  const data =
+    await apiRequest(
+      `/api/staff/festivals/${encodeURIComponent(
+        festivalId,
+      )}/menus`,
+      {
+        method: "POST",
+        body: JSON.stringify(
+          input,
+        ),
+      },
+    );
 
-  return data?.specialMenu || data;
+  return (
+    data?.specialMenu ||
+    data
+  );
 }
 
 export async function updateSpecialMenuStatus(
@@ -101,7 +95,6 @@ export async function updateSpecialMenuStatus(
     )}`,
     {
       method: "PATCH",
-      headers: staffHeaders(),
       body: JSON.stringify({
         active,
       }),
@@ -113,16 +106,14 @@ export async function getSpecialMenuItems(
   festivalId,
   specialMenuId,
 ) {
-  const data = await apiRequest(
-    `/api/staff/festivals/${encodeURIComponent(
-      festivalId,
-    )}/menus/${encodeURIComponent(
-      specialMenuId,
-    )}/items`,
-    {
-      headers: staffHeaders(),
-    },
-  );
+  const data =
+    await apiRequest(
+      `/api/staff/festivals/${encodeURIComponent(
+        festivalId,
+      )}/menus/${encodeURIComponent(
+        specialMenuId,
+      )}/items`,
+    );
 
   return data?.items || [];
 }
@@ -140,7 +131,6 @@ export async function addSpecialMenuItem(
     )}/items`,
     {
       method: "POST",
-      headers: staffHeaders(),
       body: JSON.stringify(input),
     },
   );
@@ -162,7 +152,6 @@ export async function updateSpecialMenuItemAvailability(
     )}`,
     {
       method: "PATCH",
-      headers: staffHeaders(),
       body: JSON.stringify({
         available,
       }),
@@ -186,7 +175,6 @@ export async function updateSpecialMenuItemPrice(
     )}`,
     {
       method: "PATCH",
-      headers: staffHeaders(),
       body: JSON.stringify({
         specialPriceMinor,
       }),
@@ -195,12 +183,10 @@ export async function updateSpecialMenuItemPrice(
 }
 
 export async function getAvailableMenuItems() {
-  const data = await apiRequest(
-    "/api/staff/festivals/menu-items",
-    {
-      headers: staffHeaders(),
-    },
-  );
+  const data =
+    await apiRequest(
+      "/api/staff/festivals/menu-items",
+    );
 
   return data?.items || [];
 }

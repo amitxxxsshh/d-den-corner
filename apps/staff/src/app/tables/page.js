@@ -18,10 +18,6 @@ import {
   generateTableQR,
 } from "../../lib/tables";
 
-const STAFF_USER_ID =
-  process.env.NEXT_PUBLIC_STAFF_USER_ID ||
-  "";
-
 export default function TablesPage() {
   const [locations, setLocations] =
     useState([]);
@@ -40,27 +36,14 @@ export default function TablesPage() {
 
   const loadTables =
     useCallback(async () => {
-      if (!STAFF_USER_ID) {
-        setError(
-          "NEXT_PUBLIC_STAFF_USER_ID is not configured.",
-        );
-
-        setLoading(false);
-
-        return;
-      }
-
       try {
         setError("");
 
         const response =
-          await getStaffTables(
-            STAFF_USER_ID,
-          );
+          await getStaffTables();
 
         setLocations(
-          response?.locations ||
-            [],
+          response?.locations || [],
         );
       } catch (requestError) {
         setError(
@@ -112,10 +95,7 @@ export default function TablesPage() {
       setBusyTableId(tableId);
       setError("");
 
-      await openTable(
-        tableId,
-        STAFF_USER_ID,
-      );
+      await openTable(tableId);
 
       await loadTables();
     } catch (requestError) {
@@ -136,10 +116,7 @@ export default function TablesPage() {
       setBusyTableId(tableId);
       setError("");
 
-      await closeTable(
-        tableId,
-        STAFF_USER_ID,
-      );
+      await closeTable(tableId);
 
       await loadTables();
     } catch (requestError) {
@@ -163,7 +140,6 @@ export default function TablesPage() {
       const response =
         await generateTableQR(
           tableId,
-          STAFF_USER_ID,
         );
 
       if (response?.qr) {
