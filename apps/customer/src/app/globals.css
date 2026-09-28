@@ -1,26 +1,111 @@
 @import "tailwindcss";
 
+@theme {
+  --color-charcoal-deep: #151716;
+  --color-charcoal-black: #0D0F0E;
+  --color-charcoal-green: #1C2420;
+  --color-forest-dark: #1E3026;
+  --color-forest: #304A35;
+  --color-olive: #586347;
+  --color-green-muted: #72805A;
+  --color-wood-dark: #4A3020;
+  --color-wood-warm: #765236;
+  --color-wood-light: #A57A4E;
+  --color-cream-warm: #F1E9D8;
+  --color-cream-soft: #F7F1E5;
+  --color-stone: #D8D0C1;
+  --color-beige-muted: #C7BBA7;
+  --color-amber-warm: #D89A3A;
+  --color-amber-light: #E8B85C;
+  --color-amber-gold: #B99045;
+  --color-terracotta: #A85E42;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #F7F1E5;
+  --foreground: #151716;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle checker floor motif */
+.checker-pattern-subtle {
+  background-image: 
+    linear-gradient(45deg, rgba(21, 23, 22, 0.04) 25%, transparent 25%), 
+    linear-gradient(-45deg, rgba(21, 23, 22, 0.04) 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, rgba(21, 23, 22, 0.04) 75%), 
+    linear-gradient(-45deg, transparent 75%, rgba(21, 23, 22, 0.04) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+}
+
+/* Crisp checker accent strip (for dividers & borders) */
+.checker-strip {
+  height: 6px;
+  background: repeating-linear-gradient(
+    90deg,
+    #151716 0px,
+    #151716 6px,
+    #F1E9D8 6px,
+    #F1E9D8 12px
+  );
+  opacity: 0.85;
+}
+
+.checker-strip-subtle {
+  height: 4px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(21, 23, 22, 0.18) 0px,
+    rgba(21, 23, 22, 0.18) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+}
+
+/* Warm architectural lighting & amber glows */
+.amber-glow {
+  box-shadow: 0 4px 20px -2px rgba(216, 154, 58, 0.28);
+}
+
+.amber-glow-lg {
+  box-shadow: 0 8px 30px -4px rgba(216, 154, 58, 0.4);
+}
+
+.card-warm-shadow {
+  box-shadow: 0 2px 8px -1px rgba(21, 23, 22, 0.06), 0 1px 3px -1px rgba(21, 23, 22, 0.04);
+}
+
+.card-warm-hover {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card-warm-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -4px rgba(21, 23, 22, 0.1), 0 4px 6px -2px rgba(21, 23, 22, 0.05);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D8D0C1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #C7BBA7;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SunflowerMotif, BotanicalAccent } from "../customer/Icons";
 
 function formatPrice(amountMinor) {
   return new Intl.NumberFormat("en-IN", {
@@ -28,42 +29,47 @@ export default function FestivalMenu({
     ) || festivals[0];
 
   return (
-    <section className="border-b border-gray-200 bg-amber-50 px-4 py-6 sm:px-6">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
-            Special menu
-          </p>
+    <section className="relative overflow-hidden bg-charcoal-deep text-cream-soft border-b border-amber-warm/30 px-4 py-8 sm:px-6">
+      {/* Subtle festive amber glow in background */}
+      <div className="pointer-events-none absolute -top-16 right-0 h-64 w-64 rounded-full bg-amber-warm/15 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 left-0 h-48 w-48 rounded-full bg-forest-dark/30 blur-2xl" />
 
-          <h2 className="mt-1 text-2xl font-bold text-gray-900">
+      <div className="relative mx-auto max-w-6xl">
+        <div className="mb-6">
+          <div className="flex items-center gap-2 text-amber-light">
+            <SunflowerMotif className="w-4 h-4 text-amber-warm" />
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em]">
+              Special Seasonal Celebration
+            </p>
+          </div>
+
+          <h2 className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-cream-soft font-serif">
             Festival Specials
           </h2>
 
-          {festival.description ? (
-            <p className="mt-2 max-w-2xl text-sm text-gray-600">
+          {festival?.description ? (
+            <p className="mt-2 max-w-2xl text-xs sm:text-sm text-stone leading-relaxed">
               {festival.description}
             </p>
           ) : null}
         </div>
 
+        {/* Festival Tabs (if multiple) */}
         {festivals.length > 1 ? (
-          <div className="mb-6 flex gap-2 overflow-x-auto pb-1">
+          <div className="mb-6 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
             {festivals.map((item) => {
-              const active =
-                item.id === festival.id;
+              const active = item.id === festival.id;
 
               return (
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() =>
-                    setSelectedFestival(item.id)
-                  }
+                  onClick={() => setSelectedFestival(item.id)}
                   className={[
-                    "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition",
+                    "shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition-all shadow-sm",
                     active
-                      ? "bg-gray-900 text-white"
-                      : "bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-100",
+                      ? "bg-amber-warm text-charcoal-black font-bold ring-2 ring-amber-light"
+                      : "bg-charcoal-green/70 text-cream-soft/80 border border-stone/30 hover:bg-charcoal-green hover:text-cream-soft",
                   ].join(" ")}
                 >
                   {item.name}
@@ -73,107 +79,101 @@ export default function FestivalMenu({
           </div>
         ) : null}
 
-        {Array.isArray(festival.specialMenus) &&
+        {/* Festival Special Menus */}
+        {Array.isArray(festival?.specialMenus) &&
         festival.specialMenus.length > 0 ? (
-          <div className="space-y-8">
-            {festival.specialMenus.map(
-              (specialMenu) => (
-                <div key={specialMenu.id}>
-                  <h3 className="mb-3 text-lg font-semibold text-gray-900">
+          <div className="space-y-7">
+            {festival.specialMenus.map((specialMenu) => (
+              <div key={specialMenu.id}>
+                <div className="mb-3.5 flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-warm" />
+                  <h3 className="text-base font-bold text-cream-soft font-serif">
                     {specialMenu.name}
                   </h3>
+                </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {Array.isArray(
-                      specialMenu.items,
-                    )
-                      ? specialMenu.items.map(
-                          (item) => {
-                            const regularPrice =
-                              Number(
-                                item.regularPriceMinor ||
-                                  0,
-                              );
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {Array.isArray(specialMenu.items)
+                    ? specialMenu.items.map((item) => {
+                        const regularPrice = Number(
+                          item.regularPriceMinor || 0,
+                        );
 
-                            const specialPrice =
-                              Number(
-                                item.specialPriceMinor ??
-                                  regularPrice,
-                              );
+                        const specialPrice = Number(
+                          item.specialPriceMinor ?? regularPrice,
+                        );
 
-                            return (
-                              <article
-                                key={item.id}
-                                className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-amber-100"
-                              >
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="min-w-0">
-                                    <h4 className="font-semibold text-gray-900">
+                        return (
+                          <article
+                            key={item.id}
+                            className="flex flex-col justify-between rounded-2xl border border-amber-warm/30 bg-cream-soft p-4 sm:p-5 text-charcoal-deep shadow-md transition hover:border-amber-warm hover:shadow-lg"
+                          >
+                            <div>
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-bold text-charcoal-deep font-serif text-sm sm:text-base leading-snug">
                                       {item.name}
                                     </h4>
-
-                                    {item.description ? (
-                                      <p className="mt-1 text-sm leading-5 text-gray-600">
-                                        {
-                                          item.description
-                                        }
-                                      </p>
-                                    ) : null}
-                                  </div>
-                                </div>
-
-                                <div className="mt-4 flex items-center justify-between gap-3">
-                                  <div>
-                                    <span className="font-semibold text-gray-900">
-                                      {formatPrice(
-                                        specialPrice,
-                                      )}
-                                    </span>
-
-                                    {specialPrice !==
-                                    regularPrice ? (
-                                      <span className="ml-2 text-sm text-gray-400 line-through">
-                                        {formatPrice(
-                                          regularPrice,
-                                        )}
-                                      </span>
-                                    ) : null}
                                   </div>
 
-                                  <button
-                                    type="button"
-                                    disabled={
-                                      item.available ===
-                                      false
-                                    }
-                                    onClick={() =>
-                                      onAdd?.({
-                                        ...item,
-                                        specialMenuId:
-                                          specialMenu.id,
-                                      })
-                                    }
-                                    className="rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:bg-gray-300"
-                                  >
-                                    Add
-                                  </button>
+                                  {item.description ? (
+                                    <p className="mt-1 text-xs text-charcoal-deep/70 leading-relaxed line-clamp-2">
+                                      {item.description}
+                                    </p>
+                                  ) : null}
                                 </div>
-                              </article>
-                            );
-                          },
-                        )
-                      : null}
-                  </div>
+
+                                <span className="shrink-0 rounded-full bg-amber-warm/20 border border-amber-warm/40 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-amber-gold">
+                                  Festival
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 flex items-center justify-between gap-3 pt-3 border-t border-stone/30">
+                              <div>
+                                <span className="font-extrabold text-charcoal-deep text-sm sm:text-base">
+                                  {formatPrice(specialPrice)}
+                                </span>
+
+                                {specialPrice !== regularPrice ? (
+                                  <span className="ml-2 text-xs text-charcoal-deep/40 line-through">
+                                    {formatPrice(regularPrice)}
+                                  </span>
+                                ) : null}
+                              </div>
+
+                              <button
+                                type="button"
+                                disabled={item.available === false}
+                                onClick={() =>
+                                  onAdd?.({
+                                    ...item,
+                                    specialMenuId: specialMenu.id,
+                                  })
+                                }
+                                className="inline-flex min-h-[44px] min-w-[76px] items-center justify-center rounded-xl bg-charcoal-deep px-4 py-2 text-xs font-bold text-amber-light hover:bg-charcoal-green hover:shadow transition disabled:cursor-not-allowed disabled:bg-stone/40 disabled:text-charcoal-deep/30"
+                              >
+                                {item.available === false ? "Unavailable" : "Add +"}
+                              </button>
+                            </div>
+                          </article>
+                        );
+                      })
+                    : null}
                 </div>
-              ),
-            )}
+              </div>
+            ))}
           </div>
         ) : (
-          <p className="text-sm text-gray-500">
-            No festival items are currently available.
-          </p>
+          <div className="rounded-2xl border border-stone/30 bg-charcoal-green/40 p-6 text-center text-xs text-stone">
+            No festival items are currently available for this celebration.
+          </div>
         )}
       </div>
+
+      {/* Checker strip at bottom of festival section */}
+      <div className="checker-strip-subtle opacity-20 absolute inset-x-0 bottom-0" />
     </section>
   );
 }

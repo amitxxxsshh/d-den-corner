@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import TableCard from "../../components/tables/TableCard";
+import StaffNavbar from "../../components/StaffNavbar";
 
 import {
   getStaffTables,
@@ -108,51 +109,56 @@ export default function TablesPage() {
     }
   }
 
+  const openCount = tables.filter((t) => Boolean(t.activeSession)).length;
+
   return (
-    <main className="min-h-screen bg-zinc-50 px-4 py-6 sm:px-6">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
-            Restaurant operations
-          </p>
+    <main className="min-h-screen bg-cream-soft text-charcoal-deep flex flex-col pb-16">
+      {/* Exactly ONE Unified Responsive Staff Navbar */}
+      <StaffNavbar
+        onRefresh={loadTables}
+        refreshLoading={loading}
+      />
 
-          <h1 className="mt-1 text-2xl font-bold text-zinc-950">
-            Tables
-          </h1>
+      {/* Tables Operations Title Bar */}
+      <div className="border-b border-stone/30 bg-white/60 px-4 py-5 sm:px-6 lg:px-8 backdrop-blur-xs">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl sm:text-2xl font-bold font-serif text-charcoal-deep tracking-tight">
+                Dining Floor &amp; Table Management
+              </h1>
 
-          <p className="mt-2 text-sm text-zinc-500">
-            Open and close table sessions and manage
-            table ordering links.
-          </p>
-        </div>
+              <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-forest text-[11px] font-black text-cream-soft px-2">
+                {openCount}/{tables.length} Open
+              </span>
+            </div>
 
-        {error ? (
-          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4">
-            <p className="text-sm font-medium text-red-800">
-              {error}
+            <p className="mt-0.5 text-xs text-charcoal-deep/65">
+              Open/close active table dining sessions and generate scannable table QR links.
             </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        {error ? (
+          <div className="mb-6 rounded-2xl border border-terracotta/30 bg-terracotta/10 px-5 py-3.5 text-xs text-terracotta">
+            {error}
           </div>
         ) : null}
 
-        {loading ? (
-          <div className="flex min-h-64 items-center justify-center rounded-3xl border border-zinc-200 bg-white">
-            <div className="text-center">
-              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-zinc-200 border-t-zinc-900" />
-
-              <p className="mt-4 text-sm text-zinc-500">
-                Loading tables...
-              </p>
-            </div>
+        {loading && tables.length === 0 ? (
+          <div className="flex min-h-[300px] items-center justify-center rounded-3xl border border-stone/40 bg-white p-8 text-center text-xs text-charcoal-deep/60">
+            Loading table states...
           </div>
         ) : tables.length === 0 ? (
-          <div className="rounded-3xl border border-zinc-200 bg-white p-8 text-center">
-            <h2 className="text-lg font-semibold text-zinc-900">
-              No tables found
+          <div className="rounded-3xl border border-stone/50 bg-white p-12 text-center shadow-sm">
+            <h2 className="text-base font-bold font-serif text-charcoal-deep">
+              No Tables Configured
             </h2>
 
-            <p className="mt-2 text-sm text-zinc-500">
-              Create tables before managing ordering
-              links.
+            <p className="mt-1 text-xs text-charcoal-deep/60">
+              Create dining tables in the database before managing customer ordering links.
             </p>
           </div>
         ) : (
@@ -161,18 +167,11 @@ export default function TablesPage() {
               <TableCard
                 key={table.id}
                 table={table}
-                generatedQR={
-                  generatedQR[table.id] ||
-                  null
-                }
-                busy={
-                  busyTableId === table.id
-                }
+                generatedQR={generatedQR[table.id] || null}
+                busy={busyTableId === table.id}
                 onOpen={handleOpen}
                 onClose={handleClose}
-                onGenerateQR={
-                  handleGenerateLink
-                }
+                onGenerateQR={handleGenerateLink}
               />
             ))}
           </div>

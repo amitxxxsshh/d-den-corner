@@ -1,8 +1,9 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
+import CustomerHeader from "../../components/customer/CustomerHeader";
 import MenuPageContent from "../../components/menu/MenuPageContent";
 import MenuItemDetails from "../../components/menu/MenuItemDetails";
 import MenuJoin from "../../components/menu/MenuJoin";
@@ -44,13 +45,17 @@ function MenuPageWithSearchParams() {
    */
   if (status === "loading") {
     return (
-      <main className="min-h-screen bg-white">
-        <div className="flex min-h-screen items-center justify-center px-6">
+      <main className="min-h-screen bg-cream-soft flex flex-col">
+        <CustomerHeader subtitle="MENU" />
+        <div className="flex flex-1 items-center justify-center px-6 py-16">
           <div className="text-center">
-            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-gray-900" />
-
-            <p className="mt-4 text-sm text-gray-500">
-              Loading menu...
+            <div className="relative mx-auto flex h-12 w-12 items-center justify-center">
+              <div className="absolute inset-0 rounded-full border-2 border-stone/30" />
+              <div className="h-10 w-10 animate-spin rounded-full border-2 border-transparent border-t-amber-warm" />
+              <div className="h-2 w-2 rounded-full bg-amber-warm animate-pulse" />
+            </div>
+            <p className="mt-4 text-sm font-medium text-charcoal-deep/70 font-serif">
+              Preparing D Den Corner Menu...
             </p>
           </div>
         </div>
@@ -62,8 +67,7 @@ function MenuPageWithSearchParams() {
    * Any authenticated customer session can order.
    * No session = public view-only menu.
    */
-  const orderingEnabled =
-    isAuthenticated;
+  const orderingEnabled = isAuthenticated;
 
   function handleAdd(item) {
     if (!orderingEnabled) {
@@ -75,7 +79,10 @@ function MenuPageWithSearchParams() {
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-cream-soft text-charcoal-deep flex flex-col">
+      {/* Exactly ONE Responsive Navbar */}
+      <CustomerHeader subtitle={orderingEnabled ? "TABLE ORDERING" : "EXPLORE MENU"} />
+
       <MenuPageContent
         onItemSelect={
           orderingEnabled
@@ -84,45 +91,40 @@ function MenuPageWithSearchParams() {
         }
       />
 
-      {orderingEnabled &&
-      selectedItem ? (
+      {orderingEnabled && selectedItem ? (
         <MenuItemDetails
           item={selectedItem}
-          onClose={() =>
-            setSelectedItem(null)
-          }
+          onClose={() => setSelectedItem(null)}
           onAdd={handleAdd}
         />
       ) : null}
 
       {orderingEnabled ? (
         <>
-          <CartBar
-            onClick={() =>
-              setCartOpen(true)
-            }
-          />
+          <CartBar onClick={() => setCartOpen(true)} />
 
           <CartDrawer
             open={cartOpen}
-            onClose={() =>
-              setCartOpen(false)
-            }
+            onClose={() => setCartOpen(false)}
           />
         </>
       ) : null}
-    </>
+    </div>
   );
 }
 
 function MenuPageFallback() {
   return (
-    <main className="min-h-screen bg-white">
-      <div className="flex min-h-screen items-center justify-center px-6">
+    <main className="min-h-screen bg-cream-soft flex flex-col">
+      <CustomerHeader subtitle="MENU" />
+      <div className="flex flex-1 items-center justify-center px-6 py-16">
         <div className="text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-gray-900" />
-
-          <p className="mt-4 text-sm text-gray-500">
+          <div className="relative mx-auto flex h-12 w-12 items-center justify-center">
+            <div className="absolute inset-0 rounded-full border-2 border-stone/30" />
+            <div className="h-10 w-10 animate-spin rounded-full border-2 border-transparent border-t-amber-warm" />
+            <div className="h-2 w-2 rounded-full bg-amber-warm animate-pulse" />
+          </div>
+          <p className="mt-4 text-sm font-medium text-charcoal-deep/70">
             Loading menu...
           </p>
         </div>

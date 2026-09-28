@@ -11,6 +11,8 @@ import {
   updateMenuItem,
 } from "../../lib/menu";
 
+import StaffNavbar from "../../components/StaffNavbar";
+
 export default function MenuManagementPage() {
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
@@ -351,194 +353,180 @@ export default function MenuManagementPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <main className="min-h-screen bg-zinc-50 p-6">
-        <div className="mx-auto max-w-6xl">
-          <p className="text-sm text-zinc-600">
-            Loading menu management...
-          </p>
-        </div>
-      </main>
-    );
-  }
-
   return (
-    <main className="min-h-screen bg-zinc-50 p-6">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <header>
-          <h1 className="text-3xl font-bold text-zinc-900">
-            Menu Management
-          </h1>
+    <main className="min-h-screen bg-cream-soft text-charcoal-deep flex flex-col pb-16">
+      {/* Exactly ONE Unified Responsive Staff Navbar */}
+      <StaffNavbar
+        onRefresh={loadData}
+        refreshLoading={loading}
+      />
 
-          <p className="mt-1 text-sm text-zinc-600">
-            Create the normal menu catalogue used
-            by customers and festival menus.
-          </p>
-        </header>
+      {/* Menu Catalogue Title Bar */}
+      <div className="border-b border-stone/30 bg-white/60 px-4 py-5 sm:px-6 lg:px-8 backdrop-blur-xs">
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl sm:text-2xl font-bold font-serif text-charcoal-deep tracking-tight">
+                Menu Catalogue Management
+              </h1>
 
+              <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-forest text-[11px] font-black text-cream-soft px-2">
+                {items.length} Dishes
+              </span>
+            </div>
+
+            <p className="mt-0.5 text-xs text-charcoal-deep/65">
+              Manage core restaurant dishes, pricing in ₹, categories, and real-time kitchen availability.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 sm:px-6 lg:px-8">
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-2xl border border-terracotta/30 bg-terracotta/10 px-5 py-3.5 text-xs text-terracotta font-medium">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+          <div className="rounded-2xl border border-forest/30 bg-forest/10 px-5 py-3.5 text-xs text-forest font-semibold">
             {success}
           </div>
         )}
 
+        {/* Creation Forms Grid */}
         <section className="grid gap-6 lg:grid-cols-2">
+          {/* Create Category Form */}
           <form
             onSubmit={handleCreateCategory}
-            className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm"
+            className="rounded-3xl border border-stone/50 bg-white p-5 sm:p-6 shadow-sm"
           >
-            <h2 className="text-lg font-semibold text-zinc-900">
-              Create Category
-            </h2>
+            <div className="mb-4">
+              <h2 className="text-base font-bold font-serif text-charcoal-deep">
+                Add Menu Category
+              </h2>
+              <p className="mt-0.5 text-xs text-charcoal-deep/60">
+                Organize dishes into sections (e.g. Starters, Main Course, Drinks)
+              </p>
+            </div>
 
-            <div className="mt-4 space-y-4">
+            <div className="space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700">
-                  Category name
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-charcoal-deep/70">
+                  Category Name
                 </label>
 
                 <input
                   value={categoryName}
-                  onChange={(event) =>
-                    setCategoryName(
-                      event.target.value
-                    )
-                  }
-                  placeholder="Main Course"
-                  className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+                  onChange={(event) => setCategoryName(event.target.value)}
+                  placeholder="e.g. Traditional Odisha Specials"
+                  className="w-full rounded-xl border border-stone/60 bg-cream-soft/30 px-3.5 py-2.5 text-sm text-charcoal-deep outline-none transition focus:border-amber-warm focus:ring-2 focus:ring-amber-warm/20"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700">
-                  Sort order
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-charcoal-deep/70">
+                  Sort Order
                 </label>
 
                 <input
                   type="number"
                   min="0"
                   value={categorySortOrder}
-                  onChange={(event) =>
-                    setCategorySortOrder(
-                      event.target.value
-                    )
-                  }
-                  className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+                  onChange={(event) => setCategorySortOrder(event.target.value)}
+                  className="w-full rounded-xl border border-stone/60 bg-cream-soft/30 px-3.5 py-2.5 text-sm text-charcoal-deep outline-none transition focus:border-amber-warm focus:ring-2 focus:ring-amber-warm/20"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                className="inline-flex min-h-[42px] items-center justify-center rounded-xl bg-charcoal-deep px-5 py-2.5 text-xs font-bold text-cream-soft hover:bg-charcoal-green transition shadow-sm disabled:opacity-50"
               >
-                Create Category
+                {saving ? "Saving..." : "Create Category"}
               </button>
             </div>
           </form>
 
+          {/* Create Menu Item Form */}
           <form
             onSubmit={handleCreateItem}
-            className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm"
+            className="rounded-3xl border border-stone/50 bg-white p-5 sm:p-6 shadow-sm"
           >
-            <h2 className="text-lg font-semibold text-zinc-900">
-              Create Menu Item
-            </h2>
+            <div className="mb-4">
+              <h2 className="text-base font-bold font-serif text-charcoal-deep">
+                Add Menu Item
+              </h2>
+              <p className="mt-0.5 text-xs text-charcoal-deep/60">
+                Create dishes with pricing in ₹ and optional description
+              </p>
+            </div>
 
-            <div className="mt-4 space-y-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700">
-                  Category
-                </label>
+            <div className="space-y-3.5">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-charcoal-deep/70">
+                    Category
+                  </label>
 
-                <select
-                  value={itemCategoryId}
-                  onChange={(event) =>
-                    setItemCategoryId(
-                      event.target.value
-                    )
-                  }
-                  className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm"
-                >
-                  <option value="">
-                    Select category
-                  </option>
+                  <select
+                    value={itemCategoryId}
+                    onChange={(event) => setItemCategoryId(event.target.value)}
+                    className="w-full rounded-xl border border-stone/60 bg-cream-soft/30 px-3 py-2.5 text-xs font-medium text-charcoal-deep outline-none focus:border-amber-warm"
+                  >
+                    <option value="">Select Category</option>
+                    {categories
+                      .filter((category) => category.active === 1)
+                      .map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
 
-                  {categories
-                    .filter(
-                      (category) =>
-                        category.active === 1
-                    )
-                    .map((category) => (
-                      <option
-                        key={category.id}
-                        value={category.id}
-                      >
-                        {category.name}
-                      </option>
-                    ))}
-                </select>
+                <div>
+                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-charcoal-deep/70">
+                    Price (₹)
+                  </label>
+
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={itemPrice}
+                    onChange={(event) => setItemPrice(event.target.value)}
+                    placeholder="180"
+                    className="w-full rounded-xl border border-stone/60 bg-cream-soft/30 px-3 py-2.5 text-xs font-medium text-charcoal-deep outline-none focus:border-amber-warm"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700">
-                  Item name
+                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-charcoal-deep/70">
+                  Item Name
                 </label>
 
                 <input
                   value={itemName}
-                  onChange={(event) =>
-                    setItemName(
-                      event.target.value
-                    )
-                  }
-                  placeholder="Chicken Biryani"
-                  className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm"
+                  onChange={(event) => setItemName(event.target.value)}
+                  placeholder="e.g. Pakhala Bhata Thali"
+                  className="w-full rounded-xl border border-stone/60 bg-cream-soft/30 px-3.5 py-2.5 text-xs font-medium text-charcoal-deep outline-none focus:border-amber-warm"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700">
+                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-charcoal-deep/70">
                   Description
                 </label>
 
                 <textarea
                   value={itemDescription}
-                  onChange={(event) =>
-                    setItemDescription(
-                      event.target.value
-                    )
-                  }
-                  placeholder="Optional description"
-                  rows={3}
-                  className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700">
-                  Price (₹)
-                </label>
-
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={itemPrice}
-                  onChange={(event) =>
-                    setItemPrice(
-                      event.target.value
-                    )
-                  }
-                  placeholder="180"
-                  className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm"
+                  onChange={(event) => setItemDescription(event.target.value)}
+                  placeholder="Ingredients, preparation style, allergens, dietary notes..."
+                  rows={2}
+                  className="w-full resize-none rounded-xl border border-stone/60 bg-cream-soft/30 px-3.5 py-2 text-xs font-medium text-charcoal-deep outline-none focus:border-amber-warm"
                 />
               </div>
 
@@ -546,80 +534,67 @@ export default function MenuManagementPage() {
                 type="submit"
                 disabled={
                   saving ||
-                  categories.filter(
-                    (category) =>
-                      category.active === 1
-                  ).length === 0
+                  categories.filter((c) => c.active === 1).length === 0
                 }
-                className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                className="inline-flex min-h-[42px] items-center justify-center rounded-xl bg-amber-warm px-5 py-2.5 text-xs font-bold text-charcoal-black hover:bg-amber-light transition shadow-sm disabled:cursor-not-allowed disabled:bg-stone/40"
               >
-                Create Menu Item
+                {saving ? "Saving..." : "Create Menu Item"}
               </button>
             </div>
           </form>
         </section>
 
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
+        {/* Categories Section */}
+        <section className="overflow-hidden rounded-3xl border border-stone/50 bg-white p-5 sm:p-6 shadow-sm">
+          <div className="flex items-center justify-between pb-3 mb-4 border-b border-stone/30">
             <div>
-              <h2 className="text-lg font-semibold text-zinc-900">
-                Categories
+              <h2 className="text-base font-bold font-serif text-charcoal-deep">
+                Active Categories
               </h2>
-
-              <p className="text-sm text-zinc-500">
-                {categories.length} categories
+              <p className="mt-0.5 text-xs text-charcoal-deep/60">
+                {categories.length} sections defined
               </p>
             </div>
           </div>
 
           {categories.length === 0 ? (
-            <p className="mt-4 text-sm text-zinc-500">
-              No categories yet. Create your first
-              category above.
+            <p className="text-xs text-charcoal-deep/50 py-4">
+              No categories configured yet. Create a category above to start.
             </p>
           ) : (
-            <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {categories.map((category) => (
                 <div
                   key={category.id}
-                  className="rounded-xl border border-zinc-200 p-4"
+                  className="flex flex-col justify-between rounded-2xl border border-stone/40 bg-cream-warm/20 p-4 transition hover:border-stone"
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="font-semibold text-zinc-900">
+                      <h3 className="font-bold text-sm text-charcoal-deep font-serif">
                         {category.name}
-                      </p>
-
-                      <p className="mt-1 text-xs text-zinc-500">
-                        Sort: {category.sort_order}
+                      </h3>
+                      <p className="mt-0.5 text-[10px] text-charcoal-deep/50">
+                        Sort Priority: {category.sort_order}
                       </p>
                     </div>
 
                     <span
-                      className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${
                         category.active === 1
-                          ? "bg-green-100 text-green-700"
-                          : "bg-zinc-100 text-zinc-500"
+                          ? "bg-forest/15 text-forest border-forest/30"
+                          : "bg-stone/30 text-charcoal-deep/50 border-stone/40"
                       }`}
                     >
-                      {category.active === 1
-                        ? "Active"
-                        : "Inactive"}
+                      {category.active === 1 ? "Active" : "Inactive"}
                     </span>
                   </div>
 
                   <button
                     type="button"
-                    onClick={() =>
-                      toggleCategory(
-                        category
-                      )
-                    }
-                    className="mt-4 rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700"
+                    onClick={() => toggleCategory(category)}
+                    className="mt-3 inline-flex w-fit rounded-lg border border-stone/50 bg-white px-2.5 py-1 text-[11px] font-bold text-charcoal-deep hover:bg-stone/20 transition"
                   >
-                    {category.active === 1
-                      ? "Deactivate"
-                      : "Activate"}
+                    {category.active === 1 ? "Deactivate" : "Activate"}
                   </button>
                 </div>
               ))}
@@ -627,128 +602,96 @@ export default function MenuManagementPage() {
           )}
         </section>
 
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <div>
-            <h2 className="text-lg font-semibold text-zinc-900">
-              Menu Items
-            </h2>
-
-            <p className="text-sm text-zinc-500">
-              {items.length} active catalogue items
-            </p>
+        {/* Menu Items Catalogue Table */}
+        <section className="overflow-hidden rounded-3xl border border-stone/50 bg-white p-5 sm:p-6 shadow-sm">
+          <div className="flex items-center justify-between pb-3 mb-4 border-b border-stone/30">
+            <div>
+              <h2 className="text-base font-bold font-serif text-charcoal-deep">
+                Catalogue Dishes
+              </h2>
+              <p className="mt-0.5 text-xs text-charcoal-deep/60">
+                {items.length} dishes in catalogue
+              </p>
+            </div>
           </div>
 
           {items.length === 0 ? (
-            <p className="mt-4 text-sm text-zinc-500">
-              No menu items yet. Create a category and
-              then add menu items above.
+            <p className="text-xs text-charcoal-deep/50 py-4">
+              No menu items created yet. Add dishes above.
             </p>
           ) : (
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[680px] text-left text-xs">
                 <thead>
-                  <tr className="border-b border-zinc-200 text-xs uppercase tracking-wide text-zinc-500">
-                    <th className="px-3 py-3">
-                      Item
-                    </th>
-                    <th className="px-3 py-3">
-                      Category
-                    </th>
-                    <th className="px-3 py-3">
-                      Price
-                    </th>
-                    <th className="px-3 py-3">
-                      Status
-                    </th>
-                    <th className="px-3 py-3">
-                      Actions
-                    </th>
+                  <tr className="border-b border-stone/30 text-[10px] font-bold uppercase tracking-wider text-charcoal-deep/50">
+                    <th className="px-3 py-3">Dish</th>
+                    <th className="px-3 py-3">Category</th>
+                    <th className="px-3 py-3">Price</th>
+                    <th className="px-3 py-3">Availability</th>
+                    <th className="px-3 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
 
-                <tbody>
+                <tbody className="divide-y divide-stone/20">
                   {items.map((item) => (
                     <tr
                       key={item.id}
-                      className="border-b border-zinc-100"
+                      className="hover:bg-cream-warm/20 transition-colors"
                     >
-                      <td className="px-3 py-4">
-                        <div className="font-semibold text-zinc-900">
+                      <td className="px-3 py-3.5">
+                        <p className="font-bold text-sm text-charcoal-deep font-serif">
                           {item.name}
-                        </div>
-
+                        </p>
                         {item.description && (
-                          <div className="mt-1 text-xs text-zinc-500">
+                          <p className="mt-0.5 text-[11px] text-charcoal-deep/60 line-clamp-1">
                             {item.description}
-                          </div>
+                          </p>
                         )}
                       </td>
 
-                      <td className="px-3 py-4 text-sm text-zinc-600">
-                        {categoryMap[
-                          item.category_id
-                        ]?.name ||
-                          "Unknown"}
+                      <td className="px-3 py-3.5 font-medium text-charcoal-deep/80">
+                        {categoryMap[item.category_id]?.name || "Unknown"}
                       </td>
 
-                      <td className="px-3 py-4 text-sm font-semibold text-zinc-900">
-                        ₹
-                        {(
-                          Number(
-                            item.price_minor
-                          ) / 100
-                        ).toFixed(2)}
+                      <td className="px-3 py-3.5 font-extrabold text-sm text-charcoal-deep">
+                        ₹{(Number(item.price_minor || 0) / 100).toFixed(2)}
                       </td>
 
-                      <td className="px-3 py-4">
+                      <td className="px-3 py-3.5">
                         <span
-                          className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${
                             item.available === 1
-                              ? "bg-green-100 text-green-700"
-                              : "bg-red-100 text-red-700"
+                              ? "bg-forest/15 text-forest border-forest/30"
+                              : "bg-terracotta/15 text-terracotta border-terracotta/30"
                           }`}
                         >
-                          {item.available === 1
-                            ? "Available"
-                            : "Unavailable"}
+                          <span className="h-1 w-1 rounded-full bg-current" />
+                          {item.available === 1 ? "Available" : "Unavailable"}
                         </span>
                       </td>
 
-                      <td className="px-3 py-4">
-                        <div className="flex flex-wrap gap-2">
+                      <td className="px-3 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
-                            onClick={() =>
-                              toggleItem(item)
-                            }
-                            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700"
+                            onClick={() => toggleItem(item)}
+                            className="rounded-lg border border-stone/50 bg-white px-2.5 py-1 text-[11px] font-bold text-charcoal-deep hover:bg-stone/20 transition"
                           >
-                            {item.available ===
-                            1
-                              ? "Disable"
-                              : "Enable"}
+                            {item.available === 1 ? "Disable" : "Enable"}
                           </button>
 
                           <button
                             type="button"
-                            onClick={() =>
-                              editItemPrice(
-                                item
-                              )
-                            }
-                            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700"
+                            onClick={() => editItemPrice(item)}
+                            className="rounded-lg border border-amber-warm/40 bg-amber-warm/10 px-2.5 py-1 text-[11px] font-bold text-charcoal-deep hover:bg-amber-warm/20 transition"
                           >
                             Edit Price
                           </button>
 
                           <button
                             type="button"
-                            onClick={() =>
-                              archiveItem(
-                                item
-                              )
-                            }
-                            className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600"
+                            onClick={() => archiveItem(item)}
+                            className="rounded-lg border border-terracotta/30 bg-white px-2 py-1 text-[11px] font-bold text-terracotta hover:bg-terracotta/10 transition"
                           >
                             Archive
                           </button>

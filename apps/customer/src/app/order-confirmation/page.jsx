@@ -1,48 +1,51 @@
 "use client";
 
 import Link from "next/link";
-import {
-  Suspense,
-} from "react";
-import {
-  useSearchParams,
-} from "next/navigation";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import CustomerHeader from "../../components/customer/CustomerHeader";
+import { SunflowerMotif } from "../../components/customer/Icons";
 
 function ConfirmationContent() {
-  const searchParams =
-    useSearchParams();
-
-  const orderId =
-    searchParams.get(
-      "orderId",
-    );
+  const searchParams = useSearchParams();
+  const orderId = searchParams.get("orderId");
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-8">
-      <div className="mx-auto max-w-md">
-        <div className="rounded-3xl bg-white p-6 text-center shadow-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-            <span className="text-2xl text-green-700">
-              ✓
-            </span>
+    <main className="min-h-screen bg-cream-soft text-charcoal-deep flex flex-col">
+      <CustomerHeader subtitle="ORDER CONFIRMED" />
+
+      <div className="mx-auto my-auto w-full max-w-md px-4 py-8 sm:px-6">
+        <div className="overflow-hidden rounded-3xl border border-stone/50 bg-white p-6 sm:p-8 text-center shadow-lg">
+          {/* Success Checkmark Circle */}
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-forest/15 text-forest border border-forest/30">
+            <svg className="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
           </div>
 
-          <h1 className="mt-5 text-2xl font-bold text-gray-900">
-            Order placed
+          <div className="mt-4 flex items-center justify-center gap-1.5 text-amber-gold">
+            <SunflowerMotif className="w-4 h-4 text-amber-warm" />
+            <p className="text-[11px] font-bold uppercase tracking-widest">
+              D Den Corner Kitchen
+            </p>
+          </div>
+
+          <h1 className="mt-2 text-2xl font-bold font-serif text-charcoal-deep tracking-tight">
+            Order Received!
           </h1>
 
-          <p className="mt-2 text-sm text-gray-500">
-            Your order has been received by D Den Corner.
+          <p className="mt-2 text-xs leading-relaxed text-charcoal-deep/70">
+            Your dishes have been received by the kitchen and are being queued for preparation.
           </p>
 
           {orderId ? (
-            <div className="mt-5 rounded-2xl bg-gray-50 px-4 py-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                Order ID
+            <div className="mt-6 rounded-2xl border border-stone/40 bg-cream-warm/40 p-4 text-left">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-charcoal-deep/50">
+                Order Reference
               </p>
 
-              <p className="mt-1 break-all text-sm font-semibold text-gray-800">
-                {orderId}
+              <p className="mt-1 break-all font-mono text-xs font-bold text-charcoal-deep">
+                #{orderId}
               </p>
             </div>
           ) : null}
@@ -50,27 +53,25 @@ function ConfirmationContent() {
           <div className="mt-6 space-y-3">
             {orderId ? (
               <Link
-                href={`/orders/${encodeURIComponent(
-                  orderId,
-                )}`}
-                className="block rounded-2xl bg-gray-900 px-5 py-4 text-sm font-bold text-white"
+                href={`/orders/${encodeURIComponent(orderId)}`}
+                className="flex w-full min-h-[46px] items-center justify-center rounded-xl bg-amber-warm py-3 text-xs font-bold text-charcoal-black hover:bg-amber-light transition shadow-sm"
               >
-                Track this order
+                Track Order Status →
               </Link>
             ) : null}
 
             <Link
               href="/orders"
-              className="block rounded-2xl bg-gray-100 px-5 py-4 text-sm font-bold text-gray-800"
+              className="flex w-full min-h-[46px] items-center justify-center rounded-xl bg-charcoal-deep py-3 text-xs font-bold text-cream-soft hover:bg-charcoal-green transition"
             >
-              View active orders
+              View Active Orders
             </Link>
 
             <Link
               href="/menu"
-              className="block px-5 py-3 text-sm font-semibold text-gray-600"
+              className="block pt-2 text-xs font-semibold text-charcoal-deep/70 hover:text-charcoal-deep transition"
             >
-              Back to menu
+              Browse menu for more items
             </Link>
           </div>
         </div>
@@ -81,9 +82,12 @@ function ConfirmationContent() {
 
 function LoadingState() {
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-8">
-      <div className="mx-auto max-w-md rounded-3xl bg-white p-6 text-center">
-        Loading...
+    <main className="min-h-screen bg-cream-soft flex flex-col">
+      <CustomerHeader subtitle="ORDER CONFIRMED" />
+      <div className="flex flex-1 items-center justify-center p-6">
+        <div className="rounded-3xl border border-stone/40 bg-white p-8 text-center text-xs text-charcoal-deep/60">
+          Loading order details...
+        </div>
       </div>
     </main>
   );
@@ -91,11 +95,7 @@ function LoadingState() {
 
 export default function OrderConfirmationPage() {
   return (
-    <Suspense
-      fallback={
-        <LoadingState />
-      }
-    >
+    <Suspense fallback={<LoadingState />}>
       <ConfirmationContent />
     </Suspense>
   );

@@ -17,13 +17,17 @@ export default function TableBadge() {
   }
 
   return (
-    <div className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5">
-      <span
-        aria-hidden="true"
-        className="h-2 w-2 rounded-full bg-green-500"
-      />
+    <div className="inline-flex items-center gap-2 rounded-full bg-charcoal-green/90 border border-amber-warm/30 px-3.5 py-1.5 text-xs shadow-sm backdrop-blur">
+      <span className="relative flex h-2 w-2">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-forest opacity-75"></span>
+        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-muted"></span>
+      </span>
 
-      <span className="text-xs font-semibold text-gray-700">
+      <span className="text-[11px] font-medium tracking-wide uppercase text-stone">
+        Table
+      </span>
+
+      <span className="font-bold text-cream-soft">
         {table.tableName}
       </span>
     </div>

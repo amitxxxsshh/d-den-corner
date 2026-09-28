@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 import {
   addSpecialMenuItem,
@@ -12,6 +13,8 @@ import {
   updateSpecialMenuItemPrice,
   updateSpecialMenuStatus,
 } from "../../../lib/festivals";
+
+import StaffNavbar from "../../../components/StaffNavbar";
 
 const EMPTY_MENU_FORM = {
   name: "",
@@ -95,8 +98,7 @@ export default function FestivalMenusPage({
     useState("");
 
   /*
-   * Resolve the dynamic festival route
-   * parameter.
+   * Resolve dynamic festival route parameter.
    */
   useEffect(() => {
     let cancelled = false;
@@ -146,8 +148,7 @@ export default function FestivalMenusPage({
   }
 
   /*
-   * Load all special menus belonging
-   * to this festival.
+   * Load all special menus belonging to this festival.
    */
   async function loadMenus(
     preferredMenuId = null,
@@ -180,10 +181,6 @@ export default function FestivalMenusPage({
 
       setSelectedMenuId(
         (currentMenuId) => {
-          /*
-           * Prefer a newly created or explicitly
-           * selected menu when supplied.
-           */
           if (
             preferredMenuId &&
             nextMenus.some(
@@ -195,10 +192,6 @@ export default function FestivalMenusPage({
             return preferredMenuId;
           }
 
-          /*
-           * Keep the current selection if
-           * that menu still exists.
-           */
           const currentStillExists =
             currentMenuId &&
             nextMenus.some(
@@ -211,9 +204,6 @@ export default function FestivalMenusPage({
             return currentMenuId;
           }
 
-          /*
-           * Otherwise select the first menu.
-           */
           return nextMenus[0].id;
         },
       );
@@ -229,8 +219,7 @@ export default function FestivalMenusPage({
   }
 
   /*
-   * Load items belonging to the
-   * selected special menu.
+   * Load items belonging to the selected special menu.
    */
   async function loadItems(menuId) {
     if (
@@ -267,17 +256,10 @@ export default function FestivalMenusPage({
     }
   }
 
-  /*
-   * Initial catalogue load.
-   */
   useEffect(() => {
     loadCatalogue();
   }, []);
 
-  /*
-   * Load festival menus once festivalId
-   * is available.
-   */
   useEffect(() => {
     if (!festivalId) {
       return;
@@ -286,9 +268,6 @@ export default function FestivalMenusPage({
     loadMenus();
   }, [festivalId]);
 
-  /*
-   * Load items whenever selected menu changes.
-   */
   useEffect(() => {
     if (!festivalId) {
       return;
@@ -378,16 +357,6 @@ export default function FestivalMenusPage({
 
   /*
    * Activate / deactivate a special menu.
-   *
-   * The API returns:
-   *
-   * {
-   *   ok: true,
-   *   specialMenu: {...}
-   * }
-   *
-   * We immediately update local state from
-   * that response and then refresh from D1.
    */
   async function toggleMenu(menu) {
     if (
@@ -419,9 +388,6 @@ export default function FestivalMenusPage({
         result?.specialMenu ||
         result;
 
-      /*
-       * Immediately update the visible UI.
-       */
       if (
         updatedMenu?.id
       ) {
@@ -439,10 +405,6 @@ export default function FestivalMenusPage({
             ),
         );
       } else {
-        /*
-         * Fallback if the API helper returns
-         * an unexpected shape.
-         */
         setMenus(
           (currentMenus) =>
             currentMenus.map(
@@ -467,9 +429,6 @@ export default function FestivalMenusPage({
           : "Special menu deactivated.",
       );
 
-      /*
-       * Confirm the final state from the API/D1.
-       */
       await loadMenus(
         menu.id,
       );
@@ -485,8 +444,7 @@ export default function FestivalMenusPage({
   }
 
   /*
-   * Add an existing menu item to the
-   * selected special menu.
+   * Add an existing menu item to the selected special menu.
    */
   async function handleAddItem(
     event,
@@ -572,10 +530,6 @@ export default function FestivalMenusPage({
         "Item added to special menu.",
       );
 
-      /*
-       * Reload the selected menu's items
-       * from the API.
-       */
       await loadItems(
         selectedMenuId,
       );
@@ -668,7 +622,7 @@ export default function FestivalMenusPage({
 
     const value =
       window.prompt(
-        "Enter special price in minor units. Leave empty to use regular price.",
+        "Enter special price in minor units (e.g. 18000 for ₹180). Leave empty to use regular price.",
         currentValue,
       );
 
@@ -742,10 +696,6 @@ export default function FestivalMenusPage({
         selectedMenuId,
     ) || null;
 
-  /*
-   * Do not show menu items that are already
-   * part of the selected special menu.
-   */
   const selectedMenuItemIds =
     new Set(
       items.map(
@@ -763,203 +713,180 @@ export default function FestivalMenusPage({
     );
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-6 py-8">
-      <div className="mx-auto max-w-6xl space-y-8">
-        {/* Header */}
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-medium text-zinc-500">
-              D Den Corner
-            </p>
+    <main className="min-h-screen bg-cream-soft text-charcoal-deep flex flex-col pb-16">
+      {/* Exactly ONE Unified Responsive Staff Navbar */}
+      <StaffNavbar
+        onRefresh={() => loadMenus(selectedMenuId)}
+        refreshLoading={loading}
+      />
 
-            <h1 className="mt-1 text-3xl font-bold text-zinc-900">
-              Special Menus
+      {/* Title Bar with Back to Festivals */}
+      <div className="border-b border-stone/30 bg-white/60 px-4 py-5 sm:px-6 lg:px-8 backdrop-blur-xs">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/festivals"
+                className="text-xs font-bold text-amber-gold hover:text-amber-warm transition"
+              >
+                ← Back to Festivals
+              </Link>
+            </div>
+
+            <h1 className="mt-1 text-xl sm:text-2xl font-bold font-serif text-charcoal-deep tracking-tight">
+              Festival Special Menus
             </h1>
 
-            <p className="mt-2 text-sm text-zinc-600">
-              Create and manage
-              festival-specific menus
-              and their items.
+            <p className="mt-0.5 text-xs text-charcoal-deep/65">
+              Create and manage festival-specific menus, custom special pricing, and item availability.
             </p>
           </div>
+        </div>
+      </div>
 
-          <a
-            href="/festivals"
-            className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-50"
-          >
-            Back to Festivals
-          </a>
-        </header>
-
-        {/* Error */}
+      <div className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 sm:px-6 lg:px-8">
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-2xl border border-terracotta/30 bg-terracotta/10 px-5 py-3.5 text-xs text-terracotta font-medium">
             {error}
           </div>
         )}
 
-        {/* Success */}
         {success && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          <div className="rounded-2xl border border-forest/30 bg-forest/10 px-5 py-3.5 text-xs text-forest font-semibold">
             {success}
           </div>
         )}
 
-        {/* Create Special Menu */}
-        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-900">
-            Create Special Menu
-          </h2>
+        {/* Create Special Menu Form */}
+        <section className="overflow-hidden rounded-3xl border border-stone/50 bg-white p-5 sm:p-6 shadow-sm">
+          <div className="mb-3.5">
+            <h2 className="text-base font-bold font-serif text-charcoal-deep">
+              Create Special Menu Section
+            </h2>
+            <p className="mt-0.5 text-xs text-charcoal-deep/60">
+              e.g. Festival Starters, Festive Thali, Sweet Offerings
+            </p>
+          </div>
 
           <form
-            onSubmit={
-              handleCreateMenu
-            }
-            className="mt-4 flex flex-col gap-3 sm:flex-row"
+            onSubmit={handleCreateMenu}
+            className="flex flex-col gap-3 sm:flex-row"
           >
             <input
               value={menuForm.name}
               onChange={(event) =>
                 setMenuForm({
-                  name:
-                    event.target
-                      .value,
+                  name: event.target.value,
                 })
               }
-              placeholder="e.g. Puja Special"
-              className="flex-1 rounded-xl border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-zinc-500"
+              placeholder="e.g. Durga Puja Special Thali"
+              className="flex-1 rounded-xl border border-stone/60 bg-cream-soft/30 px-3.5 py-2.5 text-xs font-medium text-charcoal-deep outline-none focus:border-amber-warm"
             />
 
             <button
               type="submit"
-              disabled={
-                savingMenu ||
-                !festivalId
-              }
-              className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={savingMenu || !festivalId}
+              className="inline-flex min-h-[42px] items-center justify-center rounded-xl bg-charcoal-deep px-5 py-2.5 text-xs font-bold text-cream-soft hover:bg-charcoal-green transition shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {savingMenu
-                ? "Creating..."
-                : "Create Menu"}
+              {savingMenu ? "Creating..." : "Create Menu"}
             </button>
           </form>
         </section>
 
-        {/* Special Menus */}
-        <section>
-          <h2 className="mb-4 text-lg font-semibold text-zinc-900">
-            Special Menus
-          </h2>
+        {/* Special Menus Tabs */}
+        <section className="space-y-3.5">
+          <div className="flex items-center justify-between pb-1">
+            <h2 className="text-base font-bold font-serif text-charcoal-deep">
+              Special Menus ({menus.length})
+            </h2>
+          </div>
 
           {loading ? (
-            <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500">
-              Loading menus...
+            <div className="rounded-3xl border border-stone/40 bg-white p-8 text-center text-xs text-charcoal-deep/60">
+              Loading special menus...
             </div>
-          ) : menus.length ===
-            0 ? (
-            <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-500">
-              No special menus
-              created yet.
+          ) : menus.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-stone/50 bg-white p-8 text-center text-xs text-charcoal-deep/60">
+              No special menus created yet. Add one above.
             </div>
           ) : (
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {menus.map(
-                (menu) => {
-                  const isSelected =
-                    selectedMenuId ===
-                    menu.id;
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {menus.map((menu) => {
+                const isSelected = selectedMenuId === menu.id;
+                const isUpdating = updatingMenuId === menu.id;
 
-                  const isUpdating =
-                    updatingMenuId ===
-                    menu.id;
+                return (
+                  <button
+                    key={menu.id}
+                    type="button"
+                    onClick={() => setSelectedMenuId(menu.id)}
+                    className={`rounded-2xl border p-4 text-left transition-all ${
+                      isSelected
+                        ? "border-charcoal-deep bg-charcoal-deep text-cream-soft shadow-md"
+                        : "border-stone/50 bg-white text-charcoal-deep hover:border-amber-warm/50"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-bold text-sm font-serif">
+                        {menu.name}
+                      </span>
 
-                  return (
-                    <button
-                      key={menu.id}
-                      type="button"
-                      onClick={() =>
-                        setSelectedMenuId(
-                          menu.id,
-                        )
-                      }
-                      className={`rounded-2xl border p-5 text-left ${
-                        isSelected
-                          ? "border-zinc-900 bg-zinc-900 text-white"
-                          : "border-zinc-200 bg-white text-zinc-900 hover:border-zinc-400"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="font-semibold">
-                          {menu.name}
-                        </span>
-
-                        <span
-                          className={`rounded-full px-2 py-1 text-xs font-medium ${
-                            menu.active
-                              ? isSelected
-                                ? "bg-white/15 text-white"
-                                : "bg-emerald-100 text-emerald-700"
-                              : isSelected
-                                ? "bg-white/15 text-white"
-                                : "bg-zinc-100 text-zinc-600"
-                          }`}
-                        >
-                          {isUpdating
-                            ? "Updating..."
-                            : menu.active
-                              ? "Active"
-                              : "Inactive"}
-                        </span>
-                      </div>
-
-                      <p
-                        className={`mt-2 text-xs ${
-                          isSelected
-                            ? "text-zinc-300"
-                            : "text-zinc-500"
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                          menu.active
+                            ? isSelected
+                              ? "bg-forest text-cream-soft"
+                              : "bg-forest/15 text-forest border border-forest/30"
+                            : isSelected
+                              ? "bg-white/20 text-cream-soft"
+                              : "bg-stone/30 text-charcoal-deep/50 border border-stone/40"
                         }`}
                       >
-                        {menu.id}
-                      </p>
-                    </button>
-                  );
-                },
-              )}
+                        {isUpdating
+                          ? "Updating..."
+                          : menu.active
+                            ? "Active"
+                            : "Inactive"}
+                      </span>
+                    </div>
+
+                    <p
+                      className={`mt-2 font-mono text-[10px] ${
+                        isSelected ? "text-stone" : "text-charcoal-deep/40"
+                      }`}
+                    >
+                      {menu.id}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
           )}
         </section>
 
-        {/* Selected Menu */}
+        {/* Selected Menu Details & Item Management */}
         {selectedMenu && (
-          <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <section className="overflow-hidden rounded-3xl border border-stone/50 bg-white p-5 sm:p-6 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between border-b border-stone/30 pb-4">
               <div>
-                <h2 className="text-xl font-semibold text-zinc-900">
+                <h3 className="text-lg font-bold font-serif text-charcoal-deep">
                   {selectedMenu.name}
-                </h2>
+                </h3>
 
-                <p className="mt-1 text-sm text-zinc-500">
+                <p className="mt-0.5 text-xs text-charcoal-deep/60">
                   {selectedMenu.active
-                    ? "This menu is active."
-                    : "This menu is inactive."}
+                    ? "Currently visible to customers during this festival."
+                    : "Hidden from customer view."}
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={() =>
-                  toggleMenu(
-                    selectedMenu,
-                  )
-                }
-                disabled={
-                  updatingMenuId ===
-                  selectedMenu.id
-                }
-                className="rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => toggleMenu(selectedMenu)}
+                disabled={updatingMenuId === selectedMenu.id}
+                className="rounded-xl border border-stone/50 bg-white px-3.5 py-1.5 text-xs font-bold text-charcoal-deep hover:bg-stone/20 transition disabled:opacity-50"
               >
-                {updatingMenuId ===
-                selectedMenu.id
+                {updatingMenuId === selectedMenu.id
                   ? "Updating..."
                   : selectedMenu.active
                     ? "Deactivate Menu"
@@ -967,251 +894,155 @@ export default function FestivalMenusPage({
               </button>
             </div>
 
-            {/* Add Item */}
-            <div className="mt-6 border-t border-zinc-100 pt-6">
-              <h3 className="font-semibold text-zinc-900">
-                Add Menu Item
-              </h3>
+            {/* Add Item to Special Menu */}
+            <div className="mt-5 border-b border-stone/30 pb-5">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-charcoal-deep/70">
+                Add Catalogue Dish to this Menu
+              </h4>
 
               {catalogueLoading ? (
-                <p className="mt-4 text-sm text-zinc-500">
-                  Loading menu
-                  catalogue...
+                <p className="mt-2 text-xs text-charcoal-deep/50">
+                  Loading catalogue...
                 </p>
-              ) : selectableMenuItems.length ===
-                0 ? (
-                <div className="mt-4 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-5 text-sm text-zinc-500">
-                  All currently
-                  available menu
-                  items are already
-                  in this special
-                  menu.
+              ) : selectableMenuItems.length === 0 ? (
+                <div className="mt-3 rounded-2xl border border-dashed border-stone/40 bg-cream-warm/20 p-4 text-xs text-charcoal-deep/60">
+                  All available catalogue dishes have already been added to this special menu.
                 </div>
               ) : (
                 <form
-                  onSubmit={
-                    handleAddItem
-                  }
-                  className="mt-4 grid gap-4 md:grid-cols-3"
+                  onSubmit={handleAddItem}
+                  className="mt-3 grid gap-3 sm:grid-cols-3"
                 >
                   <select
-                    value={
-                      itemForm.menuItemId
+                    value={itemForm.menuItemId}
+                    onChange={(event) =>
+                      setItemForm((current) => ({
+                        ...current,
+                        menuItemId: event.target.value,
+                      }))
                     }
-                    onChange={(
-                      event,
-                    ) =>
-                      setItemForm(
-                        (
-                          current,
-                        ) => ({
-                          ...current,
-                          menuItemId:
-                            event
-                              .target
-                              .value,
-                        }),
-                      )
-                    }
-                    className="rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-zinc-500"
+                    className="rounded-xl border border-stone/60 bg-cream-soft/30 px-3 py-2 text-xs font-medium text-charcoal-deep outline-none focus:border-amber-warm"
                   >
-                    <option value="">
-                      Select menu item
-                    </option>
-
-                    {selectableMenuItems.map(
-                      (
-                        menuItem,
-                      ) => (
-                        <option
-                          key={
-                            menuItem.id
-                          }
-                          value={
-                            menuItem.id
-                          }
-                        >
-                          {
-                            menuItem.name
-                          }{" "}
-                          —{" "}
-                          {formatMoney(
-                            menuItem.price_minor,
-                          )}
-                        </option>
-                      ),
-                    )}
+                    <option value="">Select dish from catalogue</option>
+                    {selectableMenuItems.map((menuItem) => (
+                      <option key={menuItem.id} value={menuItem.id}>
+                        {menuItem.name} — {formatMoney(menuItem.price_minor)}
+                      </option>
+                    ))}
                   </select>
 
                   <input
                     type="number"
                     min="0"
                     step="1"
-                    value={
-                      itemForm.specialPriceMinor
+                    value={itemForm.specialPriceMinor}
+                    onChange={(event) =>
+                      setItemForm((current) => ({
+                        ...current,
+                        specialPriceMinor: event.target.value,
+                      }))
                     }
-                    onChange={(
-                      event,
-                    ) =>
-                      setItemForm(
-                        (
-                          current,
-                        ) => ({
-                          ...current,
-                          specialPriceMinor:
-                            event
-                              .target
-                              .value,
-                        }),
-                      )
-                    }
-                    placeholder="Special price (minor units)"
-                    className="rounded-xl border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-zinc-500"
+                    placeholder="Special price (minor units, e.g. 15000)"
+                    className="rounded-xl border border-stone/60 bg-cream-soft/30 px-3 py-2 text-xs font-medium text-charcoal-deep outline-none focus:border-amber-warm"
                   />
 
                   <button
                     type="submit"
-                    disabled={
-                      savingItem ||
-                      !itemForm.menuItemId
-                    }
-                    className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={savingItem || !itemForm.menuItemId}
+                    className="inline-flex min-h-[38px] items-center justify-center rounded-xl bg-amber-warm px-4 py-2 text-xs font-bold text-charcoal-black hover:bg-amber-light transition shadow-sm disabled:cursor-not-allowed disabled:bg-stone/40"
                   >
-                    {savingItem
-                      ? "Adding..."
-                      : "Add Item"}
+                    {savingItem ? "Adding..." : "Add to Special Menu"}
                   </button>
                 </form>
               )}
 
-              <p className="mt-2 text-xs text-zinc-500">
-                Leave the special
-                price empty to use
-                the regular menu
-                price.
+              <p className="mt-2 text-[10px] text-charcoal-deep/50">
+                Leave special price empty to use the regular menu price.
               </p>
             </div>
 
-            {/* Items */}
-            <div className="mt-8">
-              <h3 className="font-semibold text-zinc-900">
-                Items
-              </h3>
+            {/* Items in Selected Special Menu */}
+            <div className="mt-5">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-charcoal-deep/70 mb-3">
+                Items in this Menu ({items.length})
+              </h4>
 
               {itemsLoading ? (
-                <div className="mt-4 rounded-xl bg-zinc-50 p-6 text-center text-sm text-zinc-500">
+                <div className="rounded-2xl border border-stone/30 bg-cream-warm/20 p-6 text-center text-xs text-charcoal-deep/60">
                   Loading items...
                 </div>
-              ) : items.length ===
-                0 ? (
-                <div className="mt-4 rounded-xl border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500">
-                  No items have
-                  been added to
-                  this special
-                  menu.
+              ) : items.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-stone/40 p-6 text-center text-xs text-charcoal-deep/50">
+                  No items have been added to this special menu yet.
                 </div>
               ) : (
-                <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200">
-                  <div className="divide-y divide-zinc-100">
-                    {items.map(
-                      (item) => {
-                        const menuItem =
-                          menuItems.find(
-                            (
-                              candidate,
-                            ) =>
-                              candidate.id ===
-                              item.menu_item_id,
-                          );
+                <div className="divide-y divide-stone/20 rounded-2xl border border-stone/40 bg-white overflow-hidden">
+                  {items.map((item) => {
+                    const menuItem = menuItems.find(
+                      (candidate) => candidate.id === item.menu_item_id,
+                    );
 
-                        const isUpdating =
-                          updatingItemId ===
-                          item.id;
+                    const isUpdating = updatingItemId === item.id;
 
-                        return (
-                          <div
-                            key={
-                              item.id
-                            }
-                            className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between"
-                          >
-                            <div>
-                              <p className="font-medium text-zinc-900">
-                                {menuItem?.name ||
-                                  item.menu_item_id}
-                              </p>
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between hover:bg-cream-warm/15 transition"
+                      >
+                        <div>
+                          <p className="font-bold text-sm font-serif text-charcoal-deep">
+                            {menuItem?.name || item.menu_item_id}
+                          </p>
 
-                              {menuItem && (
-                                <p className="mt-1 text-sm text-zinc-500">
-                                  Regular
-                                  price:{" "}
-                                  {formatMoney(
-                                    menuItem.price_minor,
-                                  )}
-                                </p>
-                              )}
-
-                              <p className="mt-1 text-sm text-zinc-500">
-                                Special
-                                price:{" "}
-                                {formatMoney(
-                                  item.special_price_minor,
-                                )}
-                              </p>
-
-                              <span
-                                className={`mt-2 inline-block rounded-full px-2 py-1 text-xs font-medium ${
-                                  item.available
-                                    ? "bg-emerald-100 text-emerald-700"
-                                    : "bg-zinc-100 text-zinc-600"
-                                }`}
-                              >
-                                {item.available
-                                  ? "Available"
-                                  : "Unavailable"}
+                          <div className="mt-1 flex items-center gap-3 text-xs text-charcoal-deep/70">
+                            {menuItem && (
+                              <span>
+                                Regular: {formatMoney(menuItem.price_minor)}
                               </span>
-                            </div>
-
-                            <div className="flex flex-wrap gap-2">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  editPrice(
-                                    item,
-                                  )
-                                }
-                                disabled={
-                                  isUpdating
-                                }
-                                className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                Edit Price
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  toggleItem(
-                                    item,
-                                  )
-                                }
-                                disabled={
-                                  isUpdating
-                                }
-                                className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                {isUpdating
-                                  ? "Updating..."
-                                  : item.available
-                                    ? "Hide"
-                                    : "Make Available"}
-                              </button>
-                            </div>
+                            )}
+                            <span className="font-bold text-charcoal-deep">
+                              Special: {formatMoney(item.special_price_minor)}
+                            </span>
                           </div>
-                        );
-                      },
-                    )}
-                  </div>
+
+                          <span
+                            className={`mt-2 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                              item.available
+                                ? "bg-forest/15 text-forest border-forest/30"
+                                : "bg-stone/30 text-charcoal-deep/50 border-stone/40"
+                            }`}
+                          >
+                            <span className="h-1 w-1 rounded-full bg-current" />
+                            {item.available ? "Available" : "Unavailable"}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => editPrice(item)}
+                            disabled={isUpdating}
+                            className="rounded-xl border border-amber-warm/40 bg-amber-warm/10 px-3 py-1.5 text-xs font-bold text-charcoal-deep hover:bg-amber-warm/20 transition disabled:opacity-50"
+                          >
+                            Edit Price
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => toggleItem(item)}
+                            disabled={isUpdating}
+                            className="rounded-xl border border-stone/50 bg-white px-3 py-1.5 text-xs font-bold text-charcoal-deep hover:bg-stone/20 transition disabled:opacity-50"
+                          >
+                            {isUpdating
+                              ? "Updating..."
+                              : item.available
+                                ? "Hide"
+                                : "Make Available"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
