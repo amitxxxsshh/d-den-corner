@@ -8,6 +8,7 @@ import {
 
 import { getTableById } from "../db/tables";
 import { getTableSessionById } from "../db/sessions";
+import { execute } from "../db";
 
 import type { Bindings } from "../types/env";
 
@@ -15,6 +16,12 @@ const sessionRoutes =
   new Hono<{ Bindings: Bindings }>();
 
 sessionRoutes.get("/me", async (c) => {
+  deleteCookie(c, CUSTOMER_SESSION_COOKIE, {
+    path: "/",
+    secure: true,
+    sameSite: "Lax",
+  });
+
   const session =
     await getCustomerSessionContext(c);
 
@@ -80,11 +87,29 @@ sessionRoutes.get("/me", async (c) => {
 });
 
 sessionRoutes.post("/leave", async (c) => {
+  const session =
+    await getCustomerSessionContext(c);
+
+  if (session) {
+    await execute(
+      c.env.DB,
+      `
+        UPDATE customer_sessions
+        SET expires_at = ?
+        WHERE id = ?
+      `,
+      new Date().toISOString(),
+      session.customerSessionId,
+    );
+  }
+
   deleteCookie(
     c,
     CUSTOMER_SESSION_COOKIE,
     {
       path: "/",
+      secure: true,
+      sameSite: "Lax",
     },
   );
 

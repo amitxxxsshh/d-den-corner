@@ -145,7 +145,7 @@ export default function FestivalMenu({
 
                               <button
                                 type="button"
-                                disabled={item.available === false}
+                                disabled={item.available === false || !onAdd}
                                 onClick={() =>
                                   onAdd?.({
                                     ...item,
@@ -154,7 +154,11 @@ export default function FestivalMenu({
                                 }
                                 className="inline-flex min-h-[44px] min-w-[76px] items-center justify-center rounded-xl bg-charcoal-deep px-4 py-2 text-xs font-bold text-amber-light hover:bg-charcoal-green hover:shadow transition disabled:cursor-not-allowed disabled:bg-stone/40 disabled:text-charcoal-deep/30"
                               >
-                                {item.available === false ? "Unavailable" : "Add +"}
+                                {item.available === false
+                                  ? "Unavailable"
+                                  : !onAdd
+                                    ? "View Only"
+                                    : "Add +"}
                               </button>
                             </div>
                           </article>

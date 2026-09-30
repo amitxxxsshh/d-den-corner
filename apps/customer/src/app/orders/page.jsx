@@ -16,19 +16,22 @@ import { BotanicalAccent } from "../../components/customer/Icons";
 import {
   getMyRunningOrders,
 } from "../../lib/orders";
+import { useCustomerSession } from "../../components/customer/CustomerSessionContext";
 
 export default function OrdersPage() {
+  const { status, isAuthenticated } = useCustomerSession();
   const [orders, setOrders] =
     useState([]);
 
   const [loading, setLoading] =
-    useState(true);
+    useState(false);
 
   const [error, setError] =
     useState("");
 
   const loadOrders =
     useCallback(async () => {
+      setLoading(true);
       try {
         const response =
           await getMyRunningOrders();
@@ -50,6 +53,10 @@ export default function OrdersPage() {
     }, []);
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
     loadOrders();
 
     const interval =
@@ -63,7 +70,7 @@ export default function OrdersPage() {
         interval,
       );
     };
-  }, [loadOrders]);
+  }, [isAuthenticated, loadOrders]);
 
   return (
     <main className="min-h-screen bg-cream-soft text-charcoal-deep pb-16 flex flex-col">
@@ -123,7 +130,29 @@ export default function OrdersPage() {
           </div>
         ) : null}
 
-        {loading ? (
+        {!isAuthenticated ? (
+          <div className="rounded-3xl border border-stone/50 bg-white p-8 sm:p-12 text-center shadow-sm">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-cream-warm text-amber-gold">
+              <BotanicalAccent className="h-7 w-7 text-forest" />
+            </div>
+
+            <h2 className="font-serif text-lg font-bold text-charcoal-deep">
+              No Active Table Session
+            </h2>
+
+            <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-charcoal-deep/60">
+              Scan the physical QR code on your table stand to view running orders and place orders directly to your table.
+            </p>
+
+            <Link
+              href="/menu"
+              className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-amber-warm px-6 py-3 text-xs font-bold text-charcoal-black hover:bg-amber-light transition shadow-md"
+            >
+              <span>Explore Menu</span>
+              <span>→</span>
+            </Link>
+          </div>
+        ) : loading ? (
           <div className="rounded-3xl border border-stone/50 bg-white p-12 text-center shadow-sm">
             <div className="relative mx-auto flex h-10 w-10 items-center justify-center">
               <div className="absolute inset-0 rounded-full border-2 border-stone/30" />

@@ -9,7 +9,12 @@ import {
   useState,
 } from "react";
 
-import { getCustomerSession } from "../../lib/session";
+import {
+  getCustomerSession,
+  getCustomerSessionToken,
+  clearCustomerSessionToken,
+  leaveCustomerSession,
+} from "../../lib/session";
 
 const CustomerSessionContext = createContext(null);
 
@@ -22,6 +27,13 @@ export function CustomerSessionProvider({ children }) {
     setStatus("loading");
     setError(null);
 
+    const token = getCustomerSessionToken();
+    if (!token) {
+      setSession(null);
+      setStatus("unauthenticated");
+      return;
+    }
+
     try {
       const result = await getCustomerSession();
 
@@ -30,7 +42,8 @@ export function CustomerSessionProvider({ children }) {
     } catch (err) {
       setSession(null);
 
-      if (err?.status === 401) {
+      if (err?.status === 401 || err?.status === 404) {
+        clearCustomerSessionToken();
         setStatus("unauthenticated");
       } else {
         setStatus("error");
@@ -39,6 +52,17 @@ export function CustomerSessionProvider({ children }) {
             "Unable to load your table session.",
         );
       }
+    }
+  }, []);
+
+  const leaveSession = useCallback(async () => {
+    try {
+      await leaveCustomerSession();
+    } catch {
+      clearCustomerSessionToken();
+    } finally {
+      setSession(null);
+      setStatus("unauthenticated");
     }
   }, []);
 
@@ -52,9 +76,10 @@ export function CustomerSessionProvider({ children }) {
       status,
       error,
       refreshSession,
+      leaveSession,
       isAuthenticated: status === "authenticated",
     }),
-    [session, status, error, refreshSession],
+    [session, status, error, refreshSession, leaveSession],
   );
 
   return (

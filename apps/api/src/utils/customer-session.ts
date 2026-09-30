@@ -1,4 +1,4 @@
-import { getCookie } from "hono/cookie";
+import { deleteCookie } from "hono/cookie";
 import type { Context } from "hono";
 
 import { getCustomerSessionByTokenHash } from "../db/sessions";
@@ -13,13 +13,47 @@ import type { CustomerSessionContext } from "../types/auth";
 export const CUSTOMER_SESSION_COOKIE =
   "__Host-dd_customer_session";
 
+export function clearCustomerSessionCookie(
+  c: Context,
+): void {
+  deleteCookie(c, CUSTOMER_SESSION_COOKIE, {
+    path: "/",
+    secure: true,
+    sameSite: "Lax",
+  });
+}
+
+export function getCustomerSessionTokenFromRequest(
+  c: Context<{ Bindings: Bindings }>,
+): string | null {
+  const authHeader = c.req.header("Authorization");
+  if (authHeader) {
+    const trimmed = authHeader.trim();
+    if (trimmed.toLowerCase().startsWith("bearer ")) {
+      const token = trimmed.slice(7).trim();
+      if (token) {
+        return token;
+      }
+    } else if (trimmed && !trimmed.includes(" ")) {
+      return trimmed;
+    }
+  }
+
+  const customHeader = c.req.header("X-Customer-Session");
+  if (customHeader) {
+    const trimmed = customHeader.trim();
+    if (trimmed) {
+      return trimmed;
+    }
+  }
+
+  return null;
+}
+
 export async function getCustomerSessionContext(
   c: Context<{ Bindings: Bindings }>,
 ): Promise<CustomerSessionContext | null> {
-  const token = getCookie(
-    c,
-    CUSTOMER_SESSION_COOKIE,
-  );
+  const token = getCustomerSessionTokenFromRequest(c);
 
   if (!token) {
     return null;

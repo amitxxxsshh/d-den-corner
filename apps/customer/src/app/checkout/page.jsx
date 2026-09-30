@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useCart } from "../../components/cart/CartContext";
+import { useCustomerSession } from "../../components/customer/CustomerSessionContext";
 import CheckoutSummary from "../../components/checkout/CheckoutSummary";
 
 import {
@@ -12,6 +13,7 @@ import {
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { isAuthenticated } = useCustomerSession();
 
   const {
     items,
@@ -30,6 +32,13 @@ export default function CheckoutPage() {
   }
 
   async function handlePlaceOrder() {
+    if (!isAuthenticated) {
+      setError(
+        "You must connect to a table using your table's QR link before placing an order.",
+      );
+      return;
+    }
+
     if (
       !Array.isArray(items) ||
       items.length === 0

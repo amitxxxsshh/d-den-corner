@@ -53,6 +53,8 @@ app.use("/api/*", async (c, next) => {
 
     allowHeaders: [
       "Content-Type",
+      "Authorization",
+      "X-Customer-Session",
     ],
 
     credentials: true,

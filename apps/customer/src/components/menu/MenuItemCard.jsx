@@ -74,16 +74,20 @@ export default function MenuItemCard({
 
         <button
           type="button"
-          disabled={isUnavailable}
+          disabled={isUnavailable || !handleAdd}
           onClick={handleClick}
           className={[
             "inline-flex min-h-[44px] min-w-[84px] items-center justify-center rounded-xl px-4 py-2.5 text-xs font-bold transition-all shadow-sm",
-            isUnavailable
+            isUnavailable || !handleAdd
               ? "cursor-not-allowed bg-stone/40 text-charcoal-deep/40"
               : "bg-charcoal-deep text-amber-light hover:bg-charcoal-green hover:shadow active:scale-95",
           ].join(" ")}
         >
-          {isUnavailable ? (disabledReason || "Sold Out") : "Add +"}
+          {isUnavailable
+            ? (disabledReason || "Sold Out")
+            : !handleAdd
+              ? "View Only"
+              : "Add +"}
         </button>
       </div>
     </article>

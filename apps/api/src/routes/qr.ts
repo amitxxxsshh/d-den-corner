@@ -1,4 +1,4 @@
-import { setCookie } from "hono/cookie";
+import { deleteCookie } from "hono/cookie";
 import { Hono } from "hono";
 
 import { getActiveTableSession } from "../db/sessions";
@@ -133,16 +133,15 @@ qrRoutes.post("/join", async (c) => {
   now.toISOString(),
 );
 
-  setCookie(c, CUSTOMER_SESSION_COOKIE, customerSessionToken, {
-  httpOnly: true,
-  secure: true,
-  sameSite: "Lax",
-  path: "/",
-  maxAge: CUSTOMER_SESSION_MAX_AGE_SECONDS,
-});
+  deleteCookie(c, CUSTOMER_SESSION_COOKIE, {
+    path: "/",
+    secure: true,
+    sameSite: "Lax",
+  });
 
   return c.json({
     ok: true,
+    token: customerSessionToken,
     session: {
       customerSessionId,
       tableSessionId: tableSession.id,
@@ -150,6 +149,7 @@ qrRoutes.post("/join", async (c) => {
       tableName: table.name,
       locationId: table.location_id,
       expiresAt,
+      token: customerSessionToken,
     },
   });
 });
