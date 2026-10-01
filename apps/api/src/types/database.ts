@@ -91,6 +91,7 @@ export interface OrderRow {
   customer_session_id: string;
   status: OrderStatus;
   total_amount_minor: number;
+  accepted_at: string | null;
   created_at: string;
   updated_at: string;
 }

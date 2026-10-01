@@ -451,6 +451,7 @@ export async function getOrderById(
         customer_session_id,
         status,
         total_amount_minor,
+        accepted_at,
         created_at,
         updated_at
       FROM orders
@@ -536,6 +537,8 @@ export async function getOrderDetails(
     status: order.status,
     total_amount_minor:
       order.total_amount_minor,
+    accepted_at:
+      order.accepted_at,
     created_at:
       order.created_at,
     updated_at:
@@ -571,6 +574,7 @@ export async function getOrdersByTableSession(
         customer_session_id,
         status,
         total_amount_minor,
+        accepted_at,
         created_at,
         updated_at
       FROM orders
@@ -596,6 +600,7 @@ export async function getRunningOrdersForCustomerSession(
           customer_session_id,
           status,
           total_amount_minor,
+          accepted_at,
           created_at,
           updated_at
         FROM orders
@@ -685,6 +690,7 @@ export async function getActiveOrders(
         customer_session_id,
         status,
         total_amount_minor,
+        accepted_at,
         created_at,
         updated_at
       FROM orders
@@ -712,6 +718,7 @@ export async function getOrdersByStatus(
         customer_session_id,
         status,
         total_amount_minor,
+        accepted_at,
         created_at,
         updated_at
       FROM orders
@@ -739,10 +746,16 @@ export async function updateOrderStatus(
         UPDATE orders
         SET
           status = ?,
-          updated_at = ?
+          updated_at = ?,
+          accepted_at = CASE
+            WHEN ? = 'ACCEPTED' AND accepted_at IS NULL THEN ?
+            ELSE accepted_at
+          END
         WHERE id = ?
           AND status = ?
       `,
+      toStatus,
+      now,
       toStatus,
       now,
       orderId,

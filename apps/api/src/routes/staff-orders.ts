@@ -87,6 +87,28 @@ staffOrderRoutes.get(
 );
 
 staffOrderRoutes.get(
+  "/history",
+  async (c) => {
+    const page = parseInt(c.req.query("page") || "1", 10);
+    const limit = parseInt(c.req.query("limit") || "10", 10);
+    const status = c.req.query("status") || undefined;
+
+    const { getStaffOrderHistory } = await import("../db/dashboard");
+
+    const result = await getStaffOrderHistory(c.env.DB, {
+      page,
+      limit,
+      status,
+    });
+
+    return c.json({
+      ok: true,
+      ...result,
+    });
+  },
+);
+
+staffOrderRoutes.get(
   "/:orderId",
   async (c) => {
     const orderId =

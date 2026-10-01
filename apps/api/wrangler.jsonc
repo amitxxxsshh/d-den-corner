@@ -5,13 +5,16 @@
   "compatibility_date": "2026-09-24",
 
   "d1_databases": [
-  {
-    "binding": "DB",
-    "database_name": "d-den-corner-db",
-    "database_id": "8433e974-cbf8-4993-b0cb-bea83f535935",
-    "migrations_dir": "migrations"
+    {
+      "binding": "DB",
+      "database_name": "d-den-corner-db",
+      "database_id": "8433e974-cbf8-4993-b0cb-bea83f535935",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "triggers": {
+    "crons": ["0 3 * * *"]
   }
-]
 }
   // "compatibility_flags": [
   //   "nodejs_compat"

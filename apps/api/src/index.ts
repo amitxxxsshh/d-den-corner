@@ -11,6 +11,9 @@ import staffTableRoutes from "./routes/staff-tables";
 import festivalRoutes from "./routes/festivals";
 import staffFestivalRoutes from "./routes/staff-festivals";
 import staffMenuRoutes from "./routes/staff-menu";
+import staffDashboardRoutes from "./routes/staff-dashboard";
+import { cleanupOldAcceptedOrders } from "./db/dashboard";
+import type { ScheduledEvent, ExecutionContext } from "@cloudflare/workers-types";
 
 import {
   getStaffUser,
@@ -175,4 +178,19 @@ app.route(
   festivalRoutes,
 );
 
-export default app;
+app.route(
+  "/api/staff/dashboard",
+  staffDashboardRoutes,
+);
+
+export default {
+  fetch: (request: Request, env: Bindings, ctx: ExecutionContext) =>
+    app.fetch(request, env, ctx),
+  async scheduled(
+    event: ScheduledEvent,
+    env: Bindings,
+    ctx: ExecutionContext,
+  ) {
+    ctx.waitUntil(cleanupOldAcceptedOrders(env.DB));
+  },
+};

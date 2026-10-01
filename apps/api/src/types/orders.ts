@@ -31,6 +31,7 @@ export type CreatedOrder = {
   customer_session_id: string;
   status: OrderStatus;
   total_amount_minor: number;
+  accepted_at?: string | null;
   items: CreatedOrderItem[];
   created_at: string;
 };
@@ -50,6 +51,7 @@ export type OrderDetails = {
   customer_session_id: string;
   status: OrderStatus;
   total_amount_minor: number;
+  accepted_at?: string | null;
   created_at: string;
   updated_at: string;
   items: OrderDetailsItem[];

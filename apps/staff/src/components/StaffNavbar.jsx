@@ -29,6 +29,7 @@ export default function StaffNavbar({
   }
 
   const navLinks = [
+    { href: "/dashboard", label: "Dashboard", exact: false },
     { href: "/", label: "Active Orders", exact: true },
     { href: "/tables", label: "Tables & QR", exact: false },
     { href: "/menu", label: "Menu Catalogue", exact: false },
