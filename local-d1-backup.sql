@@ -1,0 +1,621 @@
+PRAGMA defer_foreign_keys=TRUE;
+CREATE TABLE IF NOT EXISTS "d1_migrations"(
+		id         INTEGER PRIMARY KEY AUTOINCREMENT,
+		name       TEXT UNIQUE,
+		applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+INSERT INTO "d1_migrations" ("id","name","applied_at") VALUES(1,'0001_initial_schema.sql','2026-09-24 18:57:38');
+INSERT INTO "d1_migrations" ("id","name","applied_at") VALUES(2,'0002_active_table_session.sql','2026-09-24 19:47:59');
+INSERT INTO "d1_migrations" ("id","name","applied_at") VALUES(3,'0003__staff_auth.sql','2026-09-27 16:11:03');
+INSERT INTO "d1_migrations" ("id","name","applied_at") VALUES(4,'0004_staff_passwords.sql','2026-09-27 16:43:11');
+INSERT INTO "d1_migrations" ("id","name","applied_at") VALUES(5,'0005_order_accepted_at.sql','2026-10-01 16:18:35');
+CREATE TABLE users (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    role TEXT NOT NULL DEFAULT 'STAFF'
+        CHECK (role IN ('STAFF', 'ADMIN')),
+    active INTEGER NOT NULL DEFAULT 1
+        CHECK (active IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+, password_hash TEXT, password_salt TEXT);
+INSERT INTO "users" ("id","email","role","active","created_at","updated_at","password_hash","password_salt") VALUES('dev-staff-1','staff@ddencorner.local','STAFF',1,'2026-09-27 15:49:53','2026-09-27 15:49:53','13c9c4bd513d313d6fa0ca3ca063593b64b4568c3c861d015ea429d9e2b32ee0','9d2372ceb7f89ddf9944b42471daaee2');
+INSERT INTO "users" ("id","email","role","active","created_at","updated_at","password_hash","password_salt") VALUES('staff-amitesh-001','amitesh@ddencorner.local','STAFF',1,'2026-09-27 22:09:27','2026-09-27 22:09:27','f23061c25251ac7203182090cf651b54a5eed0a6b78d4fbde3b5689f1ec59a97','f35210e54f63919ce53263362da2df8a');
+CREATE TABLE locations (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    active INTEGER NOT NULL DEFAULT 1
+        CHECK (active IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+INSERT INTO "locations" ("id","name","active","created_at","updated_at") VALUES('dev-location-1','D Den Corner - Development',1,'2026-09-27 15:49:53','2026-09-27 15:49:53');
+CREATE TABLE tables (
+    id TEXT PRIMARY KEY,
+    location_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1
+        CHECK (active IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_tables_location
+        FOREIGN KEY (location_id)
+        REFERENCES locations(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    CONSTRAINT uq_tables_location_name
+        UNIQUE (location_id, name)
+);
+INSERT INTO "tables" ("id","location_id","name","active","created_at","updated_at") VALUES('dev-table-1','dev-location-1','Table 1',1,'2026-09-27 15:49:53','2026-09-27 15:49:53');
+INSERT INTO "tables" ("id","location_id","name","active","created_at","updated_at") VALUES('dev-table-2','dev-location-1','Table 2',1,'2026-09-27 15:49:53','2026-09-27 15:49:53');
+INSERT INTO "tables" ("id","location_id","name","active","created_at","updated_at") VALUES('dev-table-3','dev-location-1','Table 3',1,'2026-09-27 15:49:53','2026-09-27 15:49:53');
+CREATE TABLE qr_tokens (
+    id TEXT PRIMARY KEY,
+    table_id TEXT NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    active INTEGER NOT NULL DEFAULT 1
+        CHECK (active IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    revoked_at TEXT,
+
+    CONSTRAINT fk_qr_tokens_table
+        FOREIGN KEY (table_id)
+        REFERENCES tables(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+);
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('06ea8427-a142-4e35-bb5f-a4fc06d66da0','dev-table-1','e38a75eb2f258620f9bc50d4b2cfae627e436c2f53029a5df94c1727b469ec1e',0,'2026-09-27T15:52:19.677Z','2026-09-27T16:06:16.370Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('cd82f4d7-b164-4a0d-a09d-333f15d88f34','dev-table-2','52a7a389477e214bb49fd0df6dba5bdebe18da71c8e0877a41cda74802d4ee90',0,'2026-09-27T16:05:01.888Z','2026-09-27T18:10:28.683Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('95732094-b88c-4a3c-807e-78993f9faec2','dev-table-1','e71a02010f642037a5a1544a95a8916656d890c418f9dc6cb79f705e81586727',0,'2026-09-27T16:06:16.376Z','2026-09-27T16:07:58.417Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('6eec5e79-a2bc-4bbe-988c-786b1bc887a9','dev-table-3','c6731bd4c23e2fd84f81c44c1ba0bc637a903a065cf5172c06a4a9483de6ed6c',0,'2026-09-27T16:07:18.908Z','2026-09-27T18:32:17.273Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('e4427728-24cd-4828-ab84-067b1ab0f727','dev-table-1','3db049bb4605a62a26486cc2b99bda2e8779d33f7ff1fc971f90a7f6a0ed5b93',0,'2026-09-27T16:07:58.422Z','2026-09-27T18:03:12.504Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('a4e904aa-597a-4ffe-864a-7121102b58d2','dev-table-1','873c28574c9416d664a947243df96b7e8581b0e5df036d1c96cfda1f9569a577',0,'2026-09-27T18:03:12.508Z','2026-09-27T18:32:00.802Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('ca7964d2-cac7-497d-9a52-4d0c0de58e43','dev-table-2','d7547fd26d03d407b5f9f741c6b6306e6700c7279a59acdd74512fdf7ac8360e',0,'2026-09-27T18:10:28.690Z','2026-09-27T20:08:03.282Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('4db42183-6b1c-4496-8262-55a0a2f3f215','dev-table-1','8b90ac76d4a67e3ea5824a4f82d1bc128a6056468cafdf9ab555c4f0c9cd07f1',0,'2026-09-27T18:32:00.808Z','2026-09-27T21:12:06.971Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('af56449a-4bfd-419e-91d0-4ccfe11c936a','dev-table-3','34b86618748a486bf1846eb079a33a2c5e4b8c5ada5dc04a398895d5efd68548',0,'2026-09-27T18:32:17.278Z','2026-09-27T18:44:29.824Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('88e9fdf0-6eeb-46e5-9a90-bd62cc1e993e','dev-table-3','a97966673d67b65629c67c24296fb1436e5d9831f91befc5a500bccbd825dfaf',0,'2026-09-27T18:44:29.834Z','2026-09-27T21:16:55.296Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('a8633cad-e09b-4d2e-9629-2f461bb1a337','dev-table-2','be37f5e98799a44385f634f2edc9db8f2013b6ed787562d760b99568687f383c',0,'2026-09-27T20:08:03.287Z','2026-09-27T20:08:42.561Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('9275a12d-60f9-4049-8d7d-d29378c1f3db','dev-table-2','b15e14497f052702e6cf416bad6ef905d742a9ae37c37bddaf8822f55880c1d3',0,'2026-09-27T20:08:42.567Z','2026-09-27T21:16:39.012Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('2d0fd7c6-ee95-4b89-9e72-01c297d35132','dev-table-1','78d5261597e60030b4d83b588d79192ab6f2473b20c90a5d2425e4fce667212b',0,'2026-09-27T21:12:06.980Z','2026-09-27T22:13:06.085Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('6095fc05-e5ce-4edd-ac96-3f96d5446eb1','dev-table-2','55e1d190faaf8a5b4a9c0b8b695eb851a6a3279cb4571c6f6a40164a677f6093',0,'2026-09-27T21:16:39.016Z','2026-09-27T22:19:48.075Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('d012e647-ad60-4681-aea8-36d4ee6779ab','dev-table-3','4516987f812b087c11627004397186670bf0acfa25f175422192b9834cf27146',0,'2026-09-27T21:16:55.301Z','2026-09-27T22:19:48.877Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('d6a0f9f7-923a-47f7-b232-fe788352a4cb','dev-table-1','e9c8658dfd85df6b237784c282c93487348218994ad58c146b1ae41b6e2aa712',0,'2026-09-27T22:13:06.094Z','2026-09-27T22:19:47.117Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('533f6a4c-54b5-44a7-b822-3995b839672d','dev-table-1','c92296c24a2de05971954425fc8a677a45a814538f0cd3ae8c45b41ae8aa84ac',0,'2026-09-27T22:19:47.123Z','2026-09-27T22:25:30.768Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('621152e7-9f0d-4399-8653-cfafda5ed6c1','dev-table-2','2ed6d3f3a952b1c45febec4ffcf80ff61cfd581c08d9daf01729d342315bde6b',0,'2026-09-27T22:19:48.080Z','2026-09-27T22:25:32.268Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('76c49189-9d81-441c-8769-3cea57010f6d','dev-table-3','1d7f9ce1fe9fdb379f853bc9d5c9b8fe6e1d9fd0a890bd84c6146599cb241832',0,'2026-09-27T22:19:48.881Z','2026-09-27T22:25:34.629Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('6e1f0185-6fbb-4a8e-9ea3-3d72a64acf2f','dev-table-1','0f10e02032e28b2ba6fc38e16d4ea38625b494761c96ce1dcc2417f5c04b5a1f',0,'2026-09-27T22:25:30.785Z','2026-09-27T22:27:24.305Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('e2cb2750-0ae3-4b97-ab3f-52e7b6208b4e','dev-table-2','ee3bdb461c9de9465b246434ffa5ccaedb9c6a19d852c1afd4ae55c48c977e71',0,'2026-09-27T22:25:32.273Z','2026-09-27T22:26:30.799Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('31605a78-afe7-4061-ab19-771ccc493820','dev-table-3','de9f68c0f3c69a06f573fc948ff09911304c3d15a02dee03d9f6983f395403a1',0,'2026-09-27T22:25:34.635Z','2026-09-27T22:27:15.140Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('2ea6251b-02f3-48e7-ab71-3d746234822c','dev-table-2','b7b144c486d39587f64b4b4817671b8fc8d29ef7dd809beb5a29819dd1acdd8f',0,'2026-09-27T22:26:30.805Z','2026-09-27T22:27:29.426Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('7867032d-ce24-444b-80b2-ac9dd0299f4b','dev-table-3','26bba54c6e92884e02f2ef5890024fe83022a325de42a4f579551059a804f681',0,'2026-09-27T22:27:15.146Z','2026-09-30T15:55:32.399Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('43239937-d995-4bbf-a8b7-1b4710287743','dev-table-1','7fe79092062e5353ab53155481183bc1997657503694ff42831fc5800d7775c8',0,'2026-09-27T22:27:24.310Z','2026-09-28T13:33:09.802Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('c7e6891a-eb5a-41b1-81a5-e8049c595b0e','dev-table-2','f28ea26d431bf16c63ab24363e1f60de2a94bc7ecf7245733926db68b11777ea',0,'2026-09-27T22:27:29.434Z','2026-09-28T13:44:36.485Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('5d7c2fc5-8ece-4859-b925-7d57c2c75d5c','dev-table-1','277f403abe3b45c8895e00c3e865f921b006a455260407da242003469b2988d6',0,'2026-09-28T13:33:09.806Z','2026-09-28T13:37:18.982Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('4245ddd5-007b-4a4c-aaec-db1db84e2108','dev-table-1','67999fc877737e25534bb9dbf3e59fc78503ebd927f050a8c82ae4c8d65283eb',0,'2026-09-28T13:37:18.985Z','2026-09-28T14:21:05.496Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('e19fe49d-7649-4f4c-bc34-0428b1542ebb','dev-table-2','5713e8de74536d995f99927595b50494d39c94b81e69b016093dc1ecd06a1f7c',0,'2026-09-28T13:44:36.490Z','2026-09-30T15:52:50.324Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('1cae6ff8-6429-46f5-8151-14dd371a11a4','dev-table-1','62958c1f7b95026aad1b7a02b2d60696fc306eae36c1977ed5117d7529a6339e',0,'2026-09-28T14:21:05.500Z','2026-09-28T15:05:47.615Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('9caee242-0780-490b-b84e-f7c90fc3ae67','dev-table-1','d58083e2667e8e60c865ada0f3f0519dc469104eb581dca6b56dd1ddfd2a91ee',0,'2026-09-28T15:05:47.621Z','2026-09-30T15:41:16.094Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('fb832ba9-7b6e-409e-903a-aa93430c8945','dev-table-1','e5b2e3f7cbcad12bda6aee914157b44461d9f9c65d3729b085c70c50a419c739',0,'2026-09-30T15:41:16.101Z','2026-09-30T15:47:58.303Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('43a4897d-65de-40fe-867a-e32628d61956','dev-table-1','2a617744a4757ff9096f041df08560617294023b4c87aeee451524ad6bc3e1b5',0,'2026-09-30T15:47:58.310Z','2026-09-30T15:55:03.272Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('0bc7b25c-3e57-4e03-bab2-fd793acf73f6','dev-table-2','df167d9815235361ba40cbd779436baed6024772a0787bddfbc8e88ceb2a89a1',0,'2026-09-30T15:52:50.329Z','2026-09-30T15:55:14.821Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('eb343ce3-eb89-48c9-a9a7-2da6f104c6cb','dev-table-1','2e16643b02b6d68bba94f706d6456ffcf4612642602effc4dc595287c78966d4',0,'2026-09-30T15:55:03.276Z','2026-09-30T17:51:01.139Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('2415cdc5-9902-45b2-8687-073283a90bb3','dev-table-2','ca9bee8ac5e7b53bc618a400323b2c385ad54b84498b04c87c56a71b89613666',0,'2026-09-30T15:55:14.826Z','2026-09-30T17:51:04.078Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('af98b764-56db-45c4-83ae-e2669b8a257b','dev-table-3','ab38993a57cd482ad63e74f82cae29bb444ad71b8a86c5e15ac3902b9bb8fb10',0,'2026-09-30T15:55:32.406Z','2026-09-30T17:51:05.085Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('ec0ff2d2-06ee-4d14-8234-92f92b382c75','dev-table-1','6e5701687e29f7886935d985f462f97db3f34f588748260ce726ec7170880f0e',0,'2026-09-30T17:51:01.154Z','2026-09-30T19:33:02.479Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('ac4e5235-c1e8-4bbe-8a79-ee87f68a5f37','dev-table-2','4926a5e47b23298f54e2850f6950643cd7e7af279835ba8602515e14141e904a',0,'2026-09-30T17:51:04.086Z','2026-09-30T17:52:12.675Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('19a8d868-1dd4-4a20-8557-2bf7f9796bfb','dev-table-3','39b6ce54558c65f3b7ce580cf60d1b3a063740bf9c3d12d96326dbc5f12da7fb',0,'2026-09-30T17:51:05.089Z','2026-09-30T19:34:29.478Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('c6128636-e61b-49c3-aeb0-01f0d6316400','dev-table-2','c7dd64435b66fd7125a561b36d79eef8fe310c8c8e86db47fa3f61ed263d6736',0,'2026-09-30T17:52:12.682Z','2026-09-30T17:52:13.316Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('a26b43ff-a201-4fef-ad2b-0b59bd302d44','dev-table-2','fa22fd5fd05aa54835456b2bafd4aadeefea4e3c0b939505c8c8de87d68b2a2e',0,'2026-09-30T17:52:13.331Z','2026-09-30T19:33:35.148Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('b1588e38-4786-4a36-b1f1-cdf485b14cdd','dev-table-1','6a58c2bc0c50574cd674a55858785c6c65450d6224fe51a9109746b8ed279594',0,'2026-09-30T19:33:02.486Z',NULL);
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('1e4571bb-012f-492a-b92c-fed113508ebe','dev-table-2','c4985b6009da698145b0ff99d81277893101e3de765252fd4eff4292cd2ad86a',0,'2026-09-30T19:33:35.163Z',NULL);
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('4f284e33-b26a-4b9f-a7af-a36551d38248','dev-table-3','e19379ce6ca3ed1f2696b516e8cba014a7189730aa25e8b0738e02666e65f24b',0,'2026-09-30T19:34:29.486Z',NULL);
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('5589745d-f48a-4ae1-ae4a-6ca12d99afe6','dev-table-1','9952796eb19a4f3f014f82f311917175d21864d1e4f8b716822448356b55906f',0,'2026-10-01T15:46:13.473Z','2026-10-01T15:56:10.794Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('2ca3279f-b1aa-4993-943b-dcdcbd946528','dev-table-2','36f5faee2017c093c30a8843d670fc541bf854bec7f38e856f29d9eed1cbe72c',0,'2026-10-01T15:46:13.473Z','2026-10-01T16:49:56.567Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('496308f5-48f8-46bf-8225-b607970f238b','dev-table-3','a163532f5dd3f0e30248684c9bb931acf6741c93a43302845b8e5a90084c4b46',0,'2026-10-01T15:46:13.473Z',NULL);
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('67bd84b0-9a40-4ec4-9814-ce9ee5b9427a','dev-table-1','5cfa67751fe9839ac355bc1d28097913aa9bd96fb32e5c584ff28d55ed58b26e',0,'2026-10-01T15:56:10.803Z','2026-10-01T15:56:21.466Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('49939aaf-14fe-49d5-a396-3c0e3352eb88','dev-table-1','45f11daabb6463753ab8f61c93ab2428c3487916005d1fe901a7887969e2018c',0,'2026-10-01T15:56:21.473Z','2026-10-01T16:38:27.541Z');
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('7876161d-0ab2-4442-92e7-b32c3b262f09','dev-table-1','4b672e7c0d9492dc1d875de1335b301c7693774faf4fd00262412fe1bdc17888',1,'2026-10-01T16:38:27.546Z',NULL);
+INSERT INTO "qr_tokens" ("id","table_id","token_hash","active","created_at","revoked_at") VALUES('6a8e2887-fcf5-4120-b39b-49377f6f358a','dev-table-2','f59010e991a8e1da3011ef57b82214738067053adf102db39d6cef2fb74acb57',1,'2026-10-01T16:49:56.574Z',NULL);
+CREATE TABLE table_sessions (
+    id TEXT PRIMARY KEY,
+    table_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ACTIVE'
+        CHECK (status IN ('ACTIVE', 'CLOSED')),
+    started_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    closed_at TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_table_sessions_table
+        FOREIGN KEY (table_id)
+        REFERENCES tables(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    CONSTRAINT chk_table_sessions_closed_time
+        CHECK (
+            (status = 'ACTIVE' AND closed_at IS NULL)
+            OR
+            (status = 'CLOSED' AND closed_at IS NOT NULL)
+        )
+);
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('83ae16b8-d491-4635-853c-3acaf361d5ad','dev-table-1','CLOSED','2026-09-27T15:52:23.248Z','2026-09-27T16:04:50.384Z','2026-09-27T15:52:23.248Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('cd880463-d221-4bbd-87a1-8ccf48556d49','dev-table-1','CLOSED','2026-09-27T16:04:51.762Z','2026-09-27T16:04:53.909Z','2026-09-27T16:04:51.762Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('eae567d3-d63e-46b5-b440-bf83ca5c201c','dev-table-2','CLOSED','2026-09-27T16:05:02.946Z','2026-09-27T16:07:15.891Z','2026-09-27T16:05:02.946Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('25dc3768-f727-4cad-84cf-63b1d14c7602','dev-table-1','CLOSED','2026-09-27T16:06:10.545Z','2026-09-27T16:07:21.576Z','2026-09-27T16:06:10.545Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('eea14e91-c90d-4823-b330-e1dc53d97ffe','dev-table-1','CLOSED','2026-09-27T16:07:51.871Z','2026-09-27T18:03:05.646Z','2026-09-27T16:07:51.871Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('1717cf5d-6233-4ac3-90f1-cf4de16cfbc5','dev-table-1','CLOSED','2026-09-27T18:03:06.580Z','2026-09-27T18:29:53.030Z','2026-09-27T18:03:06.580Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('a4011d16-65cb-436f-92dc-f969ef20a78b','dev-table-2','CLOSED','2026-09-27T18:10:22.172Z','2026-09-27T18:24:24.070Z','2026-09-27T18:10:22.172Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('d6c36770-14db-4613-b641-17e7777cf390','dev-table-3','CLOSED','2026-09-27T18:32:24.911Z','2026-09-27T18:32:42.699Z','2026-09-27T18:32:24.911Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('f63146b5-e251-498c-a94a-a4b44b14fa7d','dev-table-3','CLOSED','2026-09-27T18:35:29.836Z','2026-09-27T18:45:48.124Z','2026-09-27T18:35:29.836Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('e883c765-3439-4107-b607-49fbb24eb089','dev-table-3','CLOSED','2026-09-27T18:45:48.713Z','2026-09-27T21:16:36.152Z','2026-09-27T18:45:48.713Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('1f9fb37b-509e-4813-ab79-002c29d28f34','dev-table-2','CLOSED','2026-09-27T20:08:01.011Z','2026-09-27T20:08:43.543Z','2026-09-27T20:08:01.011Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('adeb3e0e-6beb-4840-a675-b3ad9fdfdfc3','dev-table-2','CLOSED','2026-09-27T20:08:44.078Z','2026-09-27T21:16:35.317Z','2026-09-27T20:08:44.078Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('92bc6092-fad4-4415-b624-eba8230fdd2d','dev-table-2','CLOSED','2026-09-27T21:16:37.573Z','2026-09-27T21:16:52.379Z','2026-09-27T21:16:37.573Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('b010965f-f686-41db-8899-2ec8eef3ded1','dev-table-2','CLOSED','2026-09-27T21:16:52.659Z','2026-09-27T22:13:03.405Z','2026-09-27T21:16:52.659Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('5536b062-37e9-44dd-b2d0-aedfcb81625c','dev-table-3','CLOSED','2026-09-27T21:16:57.747Z','2026-09-27T21:16:58.686Z','2026-09-27T21:16:57.747Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('dca46db1-91ca-420e-a011-37eb86fb8d88','dev-table-1','CLOSED','2026-09-27T22:18:43.261Z','2026-09-27T22:20:08.709Z','2026-09-27T22:18:43.261Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('13b752ae-304e-43a7-b67b-cc25ca8377d4','dev-table-2','CLOSED','2026-09-27T22:19:41.809Z','2026-09-27T22:20:10.663Z','2026-09-27T22:19:41.809Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('b7e1e38e-7f24-4f6d-bc4f-8df719f1322c','dev-table-3','CLOSED','2026-09-27T22:19:44.253Z','2026-09-27T22:20:12.079Z','2026-09-27T22:19:44.253Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('4d037de0-2061-43da-9097-5fc5d8e74f78','dev-table-1','CLOSED','2026-09-27T22:20:09.888Z','2026-09-27T22:25:50.877Z','2026-09-27T22:20:09.888Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('185bea96-3b87-47a2-87b6-4f0a41dc372e','dev-table-2','CLOSED','2026-09-27T22:20:11.248Z','2026-09-27T22:26:29.410Z','2026-09-27T22:20:11.248Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('dd43f72c-866f-48b5-ac78-8e2f9952b7c7','dev-table-3','CLOSED','2026-09-27T22:20:12.513Z','2026-09-27T22:27:40.744Z','2026-09-27T22:20:12.513Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('8cda43b7-20a0-429b-82fe-5a0c967de1be','dev-table-1','CLOSED','2026-09-27T22:25:52.070Z','2026-09-27T22:27:45.106Z','2026-09-27T22:25:52.070Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('a64b3f27-ec91-4f1d-b93a-c29e7a54cb86','dev-table-2','CLOSED','2026-09-27T22:26:36.813Z','2026-09-27T22:27:43.154Z','2026-09-27T22:26:36.813Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('cb927246-e42b-4da7-8e04-b0e02c3b6014','dev-table-3','CLOSED','2026-09-27T22:27:42.132Z','2026-09-28T14:20:41.881Z','2026-09-27T22:27:42.132Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('3d3604b6-b9a5-4807-bd7c-0b6f41e8cd4f','dev-table-2','CLOSED','2026-09-27T22:27:43.456Z','2026-09-28T13:45:14.776Z','2026-09-27T22:27:43.456Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('601cb9c7-057c-4aad-a150-80dc7627c914','dev-table-1','CLOSED','2026-09-27T22:27:45.424Z','2026-09-28T13:37:06.740Z','2026-09-27T22:27:45.424Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('6358d386-3064-4b46-ac93-5065cd3098a7','dev-table-1','CLOSED','2026-09-28T13:37:07.473Z','2026-09-28T13:38:04.885Z','2026-09-28T13:37:07.473Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('915e3c38-5e7d-4bf5-9214-683e99b96095','dev-table-1','CLOSED','2026-09-28T13:38:05.886Z','2026-09-28T14:21:20.924Z','2026-09-28T13:38:05.886Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('ae7f86fe-f04d-4a1f-8a4d-bd502e6015a7','dev-table-2','CLOSED','2026-09-28T13:45:15.782Z','2026-09-28T14:20:37.858Z','2026-09-28T13:45:15.782Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('1c2194c7-03c0-46d9-84c4-f8abdff7f1a0','dev-table-1','CLOSED','2026-09-28T14:21:21.696Z','2026-09-28T15:05:45.027Z','2026-09-28T14:21:21.696Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('3e0425b2-bf64-426f-ad42-4144a569b2e5','dev-table-1','CLOSED','2026-09-28T15:06:08.690Z','2026-09-28T15:19:03.478Z','2026-09-28T15:06:08.690Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('c6909bca-8904-42b4-9e0a-7a73c2e9a978','dev-table-1','CLOSED','2026-09-30T15:41:24.401Z','2026-09-30T15:41:28.831Z','2026-09-30T15:41:24.401Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('54037363-1579-483c-bfd6-d115459a4e08','dev-table-1','CLOSED','2026-09-30T15:41:30.063Z','2026-09-30T15:41:30.882Z','2026-09-30T15:41:30.063Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('42540a55-e51f-4fb7-b5d9-fa73a7748e47','dev-table-1','CLOSED','2026-09-30T15:47:57.517Z','2026-09-30T15:48:03.709Z','2026-09-30T15:47:57.517Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('c87e9ada-c93e-401d-8369-51795d815284','dev-table-1','CLOSED','2026-09-30T15:48:04.368Z','2026-09-30T15:54:57.931Z','2026-09-30T15:48:04.368Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('097d071b-9a5e-4e9e-8a52-98f33d481e1e','dev-table-2','CLOSED','2026-09-30T15:52:27.950Z','2026-09-30T15:52:54.422Z','2026-09-30T15:52:27.950Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('dd22044a-e5c6-407f-9c0c-c4637b1ecd5e','dev-table-3','CLOSED','2026-09-30T15:52:29.015Z','2026-09-30T15:55:00.844Z','2026-09-30T15:52:29.015Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('994a6300-78cc-4d80-9b6c-4af1a4e98597','dev-table-2','CLOSED','2026-09-30T15:52:54.571Z','2026-09-30T15:54:59.343Z','2026-09-30T15:52:54.571Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('4f9007fd-fd6d-417b-91f3-99543e155b7b','dev-table-1','CLOSED','2026-09-30T15:54:58.509Z','2026-09-30T15:55:45.549Z','2026-09-30T15:54:58.509Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('c3148bb9-e022-496c-b220-c3e11df5359b','dev-table-2','CLOSED','2026-09-30T15:54:59.713Z','2026-09-30T15:55:47.215Z','2026-09-30T15:54:59.713Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('84dfada7-ce3b-4e11-a705-b737aa25866b','dev-table-3','CLOSED','2026-09-30T15:55:01.258Z','2026-09-30T15:55:48.366Z','2026-09-30T15:55:01.258Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('d8344bd5-98e8-4bd7-8b68-dcbf1e9c2a9f','dev-table-1','CLOSED','2026-09-30T15:55:46.171Z','2026-09-30T17:51:29.803Z','2026-09-30T15:55:46.171Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('db511ffa-6e97-4b68-ad1e-0ebfff416b42','dev-table-2','CLOSED','2026-09-30T15:55:47.548Z','2026-09-30T17:52:24.658Z','2026-09-30T15:55:47.548Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('0615ab49-e19a-4750-ad0c-77b5373cb53a','dev-table-3','CLOSED','2026-09-30T15:55:48.626Z','2026-09-30T17:52:36.637Z','2026-09-30T15:55:48.626Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('af4c2c5e-9500-4040-8878-0926a1790429','dev-table-1','CLOSED','2026-09-30T17:51:30.484Z','2026-09-30T19:32:59.309Z','2026-09-30T17:51:30.484Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('db669022-b32b-40f6-b2f9-d901eabdc7e6','dev-table-2','CLOSED','2026-09-30T17:52:25.514Z','2026-09-30T19:33:33.051Z','2026-09-30T17:52:25.514Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('bdf9018d-5c6b-49ef-950e-94ca11ddcc2d','dev-table-3','CLOSED','2026-09-30T17:52:39.264Z','2026-09-30T19:34:32.251Z','2026-09-30T17:52:39.264Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('79f962ae-b1be-4854-ba07-0beb7c336741','dev-table-1','CLOSED','2026-09-30T19:33:00.214Z','2026-09-30T19:33:00.840Z','2026-09-30T19:33:00.214Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('8ab87e09-f71b-4bc0-b92f-7bc6d3ca2c1d','dev-table-1','CLOSED','2026-09-30T19:33:06.631Z','2026-09-30T19:33:07.629Z','2026-09-30T19:33:06.631Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('5492abaf-c5e7-4cbe-9511-0ccda33db16e','dev-table-1','CLOSED','2026-09-30T19:33:21.199Z','2026-10-01T15:56:09.042Z','2026-09-30T19:33:21.199Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('d77bd47d-7901-4f22-8492-09cfacdf3449','dev-table-2','CLOSED','2026-09-30T19:33:50.769Z','2026-10-01T15:56:07.954Z','2026-09-30T19:33:50.769Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('91448815-6967-4a53-8e66-dd9fdbdb4740','dev-table-3','CLOSED','2026-09-30T19:34:40.861Z','2026-10-01T15:56:07.328Z','2026-09-30T19:34:40.861Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('2c673a49-0315-47e2-b3ea-07e1870c6508','dev-table-1','CLOSED','2026-10-01T15:56:29.511Z','2026-10-01T16:38:32.787Z','2026-10-01T15:56:29.511Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('650f84d8-a15e-4d07-96af-0fa94451ba71','dev-table-1','CLOSED','2026-10-01T16:38:33.087Z','2026-10-01T17:50:19.441Z','2026-10-01T16:38:33.087Z');
+INSERT INTO "table_sessions" ("id","table_id","status","started_at","closed_at","created_at") VALUES('dcf6c7e1-e34d-4566-b9ec-5bb65c3c5975','dev-table-2','CLOSED','2026-10-01T16:50:01.162Z','2026-10-01T17:50:33.374Z','2026-10-01T16:50:01.162Z');
+CREATE TABLE customer_sessions (
+    id TEXT PRIMARY KEY,
+    table_session_id TEXT NOT NULL,
+    session_token_hash TEXT NOT NULL UNIQUE,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_customer_sessions_table_session
+        FOREIGN KEY (table_session_id)
+        REFERENCES table_sessions(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+);
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('1c64c0d2-33ec-4c52-908d-8df10278f2da','83ae16b8-d491-4635-853c-3acaf361d5ad','ec0667a52e164b0f56c924e79ce8699790eb168827b06921f242a407c069497e','2026-09-28T15:52:51.458Z','2026-09-27T15:52:51.458Z','2026-09-27T15:52:51.458Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('a8ba0ba4-452b-4c32-a17a-4549177ac70a','83ae16b8-d491-4635-853c-3acaf361d5ad','66fd5c8a99b434b0b327ba4311896be3d3ecdff38fb03eac72b41856b754d48c','2026-09-28T15:52:51.524Z','2026-09-27T15:52:51.524Z','2026-09-27T16:04:41.424Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('8125879c-e7dd-400e-b518-523749f424bf','1717cf5d-6233-4ac3-90f1-cf4de16cfbc5','1e433370f5116f2330c7671b74e45b0fabccdb9c9c45f6bb1d074a1c83e5fb55','2026-09-28T18:07:02.306Z','2026-09-27T18:07:02.306Z','2026-09-27T18:07:02.306Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('9b38ca03-9a40-4efc-9748-d017195ef28a','1717cf5d-6233-4ac3-90f1-cf4de16cfbc5','fc998f1f76bde176d05864ce74fee179fad14e7ee85e513586568c4a1bc17145','2026-09-28T18:07:02.334Z','2026-09-27T18:07:02.334Z','2026-09-27T18:10:54.348Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('266899bd-0a27-4827-8680-4366826d6e10','a4011d16-65cb-436f-92dc-f969ef20a78b','75e8abcbfb8dc9fd05a985a03f679c87f31aed5171623afdf1b64fe18c9e50e2','2026-09-28T18:10:54.423Z','2026-09-27T18:10:54.423Z','2026-09-27T18:10:54.423Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('6730ef45-10d8-4723-a339-6211d15ce31d','a4011d16-65cb-436f-92dc-f969ef20a78b','17d2aad738f9dd1d4c27cb9aa506d111edac4cda3d6eb594be9af61ea386eea0','2026-09-28T18:10:54.471Z','2026-09-27T18:10:54.471Z','2026-09-27T18:10:55.426Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('25e7c0d8-9c48-4e91-bd83-bff570e2feb4','f63146b5-e251-498c-a94a-a4b44b14fa7d','bfbeef87103317ff20d1a412c20a6a2699d1e8771fbab412c3dacc6e9eac5396','2026-09-28T18:35:32.253Z','2026-09-27T18:35:32.253Z','2026-09-27T18:35:32.253Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('fc74b80c-ff1d-4f4c-8142-32738e2ef42e','f63146b5-e251-498c-a94a-a4b44b14fa7d','0e906861296e469622e3beaec7e6779b2bf245528a3e466058242de3ed652386','2026-09-28T18:35:32.254Z','2026-09-27T18:35:32.254Z','2026-09-27T18:45:36.639Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('674008f2-15e5-467c-85e6-f01d12662ab8','e883c765-3439-4107-b607-49fbb24eb089','7fb1a7907fa267034b0c97a037135f8fbd9d584015e0a4f30489dd30bb299f74','2026-09-28T18:45:51.563Z','2026-09-27T18:45:51.563Z','2026-09-27T18:45:51.563Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('7c1335dc-6bdd-4ac4-8a75-f487a10f95f8','e883c765-3439-4107-b607-49fbb24eb089','1a9adbb76ebe6ece2b2283bc959dcdcf9dc8654df4b3d22f02a1ddd7a81a478f','2026-09-28T18:45:51.598Z','2026-09-27T18:45:51.598Z','2026-09-27T18:46:20.339Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('ae23473b-098f-4f97-8cdd-7423b73cf021','e883c765-3439-4107-b607-49fbb24eb089','3a4adb62a97ea61deba95191f496484afe885f868f84d2f15a50b368d5581aa0','2026-09-28T18:46:20.339Z','2026-09-27T18:46:20.339Z','2026-09-27T18:46:20.339Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('dcfe0559-cc65-472b-8512-68a401b1ef90','e883c765-3439-4107-b607-49fbb24eb089','cb04f4f9129d31de98ffd36651b75799145309f01fdf9207187f987a44f8d003','2026-09-28T18:46:20.339Z','2026-09-27T18:46:20.339Z','2026-09-27T19:43:29.668Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('28be5f39-3893-4b6d-8936-7bde5dc11f41','e883c765-3439-4107-b607-49fbb24eb089','b7498a9e077c53ee68ebe46ac45bbdc5ab10474c2eb0380bab4ea41460eaf2b0','2026-09-28T19:43:29.669Z','2026-09-27T19:43:29.669Z','2026-09-27T19:43:29.669Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('97a7acbc-8000-48ba-a3a8-7436de739720','e883c765-3439-4107-b607-49fbb24eb089','128c41167e75eb0bdadb1035acbd6c854824f0c11ebfd65c61bff57fde870043','2026-09-28T19:43:29.726Z','2026-09-27T19:43:29.726Z','2026-09-27T19:43:57.031Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('657ea19c-7d1e-4886-90bd-0978d85f942b','e883c765-3439-4107-b607-49fbb24eb089','1d3c8e5507b2ab0aa358a782427a4e079f480d95b7ff103e79ffcd4c48b0b881','2026-09-28T19:43:57.032Z','2026-09-27T19:43:57.032Z','2026-09-27T19:43:57.032Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('47dceee2-66df-4a9d-add9-d40cda905c60','e883c765-3439-4107-b607-49fbb24eb089','a66142bab7560f0313729d6237502c7d4273727dc331acf7bcd26cc4038c0201','2026-09-28T19:43:57.080Z','2026-09-27T19:43:57.080Z','2026-09-27T19:47:35.865Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('da092743-91c4-4c3a-a482-1f4005f2d750','e883c765-3439-4107-b607-49fbb24eb089','548c31fdfe9341fe0f7c8158a31bfe25f1def8fb79acb2da20f2410bc5453eb1','2026-09-28T19:47:35.907Z','2026-09-27T19:47:35.907Z','2026-09-27T19:47:35.907Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('4ed06a12-29d9-46f5-8ed3-b7962302b18d','e883c765-3439-4107-b607-49fbb24eb089','3c1cf344115fdbc9b7b6bd3089689c8e138df61e9a49d396a1d1478659556873','2026-09-28T19:47:35.908Z','2026-09-27T19:47:35.908Z','2026-09-27T20:05:55.684Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('89aa8f3d-0387-4da9-b9e2-6c25aad07ce9','e883c765-3439-4107-b607-49fbb24eb089','38e4651786453726e75c4570eebf52b4b0cdd166ffbdd1957ec15222c1142315','2026-09-28T20:05:55.692Z','2026-09-27T20:05:55.692Z','2026-09-27T20:05:55.692Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('10922edb-430f-440f-bc13-93a2b0147115','e883c765-3439-4107-b607-49fbb24eb089','825d427ff35bd568ecdd737f8b85a17ac423f4b6dcc8f34dd9083848ccb89372','2026-09-28T20:05:55.757Z','2026-09-27T20:05:55.757Z','2026-09-27T20:08:47.444Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('f65647d3-d932-41c5-9594-02dd86c4cb01','adeb3e0e-6beb-4840-a675-b3ad9fdfdfc3','871ff03a52645065fa1fc0ed2d338d116e21da87e1232ebd1c79a56a13ae9b89','2026-09-28T20:08:47.448Z','2026-09-27T20:08:47.448Z','2026-09-27T20:08:47.448Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('697e7d10-4a41-49fd-bc4d-727c6d94e7cf','adeb3e0e-6beb-4840-a675-b3ad9fdfdfc3','e82032f68c07dc6a4c93c3fc9bd86e85e8c2b5316ca1f3a38847a1b7a3b6911f','2026-09-28T20:08:47.494Z','2026-09-27T20:08:47.494Z','2026-09-27T21:16:26.185Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('aa8efe9c-bba1-4239-ad7b-7d4b8f05b35f','b010965f-f686-41db-8899-2ec8eef3ded1','b1c8489e4a9f3db2c97afa3831e37b8266d4f338c85d762fe7a5aeeca74ef903','2026-09-28T21:17:04.513Z','2026-09-27T21:17:04.513Z','2026-09-27T21:17:04.513Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('604fb6ec-207f-4552-ab11-78ca2df7c3cc','b010965f-f686-41db-8899-2ec8eef3ded1','80b1353ee1b1537ad32ac9753a338826471bf5d0490f4f50f12909f8d1757c35','2026-09-28T21:17:04.566Z','2026-09-27T21:17:04.566Z','2026-09-27T21:18:21.483Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('2f4ea1da-ff58-4a6f-9111-819c9c5a2bad','b010965f-f686-41db-8899-2ec8eef3ded1','3df128aac992a7d3681013b8e64da7767254a5858787d6ebc22782236b25ebfc','2026-09-28T21:18:21.483Z','2026-09-27T21:18:21.483Z','2026-09-27T21:18:21.483Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('c6737bab-1eaf-403b-b4dc-26e49f44e2fb','b010965f-f686-41db-8899-2ec8eef3ded1','2acc87fa6cacaef7dbdc7acef2aeea8d67f2ce64120ff7f73a8c109bca0f814e','2026-09-28T21:18:21.483Z','2026-09-27T21:18:21.483Z','2026-09-27T21:51:10.371Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('464c83ed-27b0-4540-a393-14dec5b445b9','dca46db1-91ca-420e-a011-37eb86fb8d88','69db4a9e7052bb0d399b04d2da96f4cf26a53643edba7e0e6a805830511f02cb','2026-09-28T22:18:46.201Z','2026-09-27T22:18:46.201Z','2026-09-27T22:18:46.283Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('ac462e64-2512-4b43-a3aa-dbde577e522d','dca46db1-91ca-420e-a011-37eb86fb8d88','20d4fa9aeaa64ff53a73e132d9555fd18621a08cbdc2075ae587abbad8d3d6fd','2026-09-28T22:18:46.244Z','2026-09-27T22:18:46.244Z','2026-09-27T22:20:06.063Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('66c4971f-7f8d-448d-a1b8-6832dbcb2186','dd43f72c-866f-48b5-ac78-8e2f9952b7c7','86dd27bfb4722c3a494028da1a3370a72e9505b514924228831a2008e7d28d01','2026-09-28T22:20:16.243Z','2026-09-27T22:20:16.243Z','2026-09-27T22:20:16.243Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('096e7580-03ea-441f-b085-d0b1c4fe6b44','dd43f72c-866f-48b5-ac78-8e2f9952b7c7','1f88aace5bfd87f4cb9b609e876719c86b383116499bf10eb2102cb76afd780c','2026-09-28T22:20:16.244Z','2026-09-27T22:20:16.244Z','2026-09-27T22:20:17.832Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('8579898a-bc6c-4aa0-8e03-42c6698dd51d','185bea96-3b87-47a2-87b6-4f0a41dc372e','5a291b80fe06e006960fcd09d6bd43312a1478c081b89222bcb2de78e587fb72','2026-09-28T22:20:17.833Z','2026-09-27T22:20:17.833Z','2026-09-27T22:20:17.833Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('e68a82ae-c71b-45e0-bb9b-65667c053d98','185bea96-3b87-47a2-87b6-4f0a41dc372e','579c645472cea624f90401c6be5c3c434da5cf20e4109354d8cf9de9df11adab','2026-09-28T22:20:17.833Z','2026-09-27T22:20:17.833Z','2026-09-27T22:20:20.100Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('b361fde1-fe33-40c4-b6e0-8200bf1e8eef','4d037de0-2061-43da-9097-5fc5d8e74f78','5edca6c8c92781b68b0b3335d1f61a0dfebc9fe11e930aede8803105dd441fc9','2026-09-28T22:20:20.100Z','2026-09-27T22:20:20.100Z','2026-09-27T22:20:20.100Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('38901057-e91b-4932-9b51-bf0444b69b4b','4d037de0-2061-43da-9097-5fc5d8e74f78','567a66f81685b5c2d0e1b0735d7c226424b29d1e8b549c43e9a9b27bd9158d1e','2026-09-28T22:20:20.101Z','2026-09-27T22:20:20.101Z','2026-09-27T22:25:47.772Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('36246c2b-7e6a-4a69-be99-d3a3dacb0e2d','8cda43b7-20a0-429b-82fe-5a0c967de1be','54a604900f37b8b1f35f574995b0eb85b6458ef0f38106946322cefcfcec063a','2026-09-28T22:25:56.907Z','2026-09-27T22:25:56.907Z','2026-09-27T22:25:56.907Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('b714b76c-5393-455f-b04e-927792b75676','8cda43b7-20a0-429b-82fe-5a0c967de1be','8a7bbb6fee48e018beab64797cdefd9fef474fe37c097b5d1a076b6a5759606b','2026-09-28T22:25:56.907Z','2026-09-27T22:25:56.907Z','2026-09-27T22:26:39.593Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('2efeee7d-a263-4394-a5fa-73a6122f3dbd','a64b3f27-ec91-4f1d-b93a-c29e7a54cb86','47210ae3023f060c881e63010d9ef35b780182a45bf387218a60818ec881b021','2026-09-28T22:26:39.635Z','2026-09-27T22:26:39.635Z','2026-09-27T22:26:39.635Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('3efed7ad-34b9-4831-be82-7c8d776a02f9','a64b3f27-ec91-4f1d-b93a-c29e7a54cb86','f94675afe699e1a40eac456fae4333402adc0608c8a89c0a7e5c9b3fcd6dd791','2026-09-28T22:26:39.663Z','2026-09-27T22:26:39.663Z','2026-09-27T22:27:35.675Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('0e279559-f085-41ec-a8ae-030f39ab1ee0','601cb9c7-057c-4aad-a150-80dc7627c914','6c15b9f91b5c482ea88da1dfcf1fc70553991236642ed2db9a41ece0d20c5019','2026-09-28T22:27:49.871Z','2026-09-27T22:27:49.871Z','2026-09-27T22:27:49.871Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('85143469-90af-4548-a200-acb46c483a20','601cb9c7-057c-4aad-a150-80dc7627c914','8772e14bcdbfcf0af85d7e170c697fdc85782bd5c780b978dd47400b5e94d55d','2026-09-28T22:27:49.909Z','2026-09-27T22:27:49.909Z','2026-09-27T22:28:28.980Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('c285cea4-c4e2-48d9-ae3c-5455ed094d65','3d3604b6-b9a5-4807-bd7c-0b6f41e8cd4f','4ea42d38a0904ac553a3a31bb122a340d4ee63e8844df3e9a8d9a4490f79ea81','2026-09-28T22:28:28.980Z','2026-09-27T22:28:28.980Z','2026-09-27T22:28:29.052Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('805d83d9-060a-429f-8aa1-122feec80290','3d3604b6-b9a5-4807-bd7c-0b6f41e8cd4f','cd4e2556d6c1525990d7c24cf2151e8c834fcd0ebb51aeb27903dd2b2e27d011','2026-09-28T22:28:29.030Z','2026-09-27T22:28:29.030Z','2026-09-27T22:28:45.813Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('90b0ac0d-f46a-40d5-b31c-a60abfa31a30','cb927246-e42b-4da7-8e04-b0e02c3b6014','f1796533ac5164430b6e1790a3450e53f44a50e60928d817a1b5aa6ed7f7e60d','2026-09-28T22:28:45.883Z','2026-09-27T22:28:45.883Z','2026-09-27T22:28:45.883Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('671f9c83-da7e-4323-9a57-b7a64ee80b78','cb927246-e42b-4da7-8e04-b0e02c3b6014','0fc8c43039a25853ecc2d071eead636bf4fffb678ffe57598bffa05c1613ce99','2026-09-28T22:28:45.884Z','2026-09-27T22:28:45.884Z','2026-09-27T22:28:53.861Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('724dab33-824d-4368-b7fb-ce7606821ebd','915e3c38-5e7d-4bf5-9214-683e99b96095','347095ffffda8a1a91a7b0b2741c7b29276c6a2bbd3f604a159178d2d2450ad6','2026-09-29T13:38:11.447Z','2026-09-28T13:38:11.447Z','2026-09-28T13:38:11.447Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('05da3664-47d3-462c-86c2-05342af9bd5c','915e3c38-5e7d-4bf5-9214-683e99b96095','9fac17c08cd2ccc64c9800a3cb1afb730638885211e1776d04a71aa4f2cc97e2','2026-09-29T13:38:11.448Z','2026-09-28T13:38:11.448Z','2026-09-28T13:45:58.856Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('f3b62bee-9e55-4d25-81b6-2bc725123158','915e3c38-5e7d-4bf5-9214-683e99b96095','f14838096573246d0f0d53d2a6b0ff5f03dd0ef4f2eb60a75c3995be972fff9d','2026-09-29T13:41:36.373Z','2026-09-28T13:41:36.373Z','2026-09-28T13:41:36.373Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('47f9eb96-d6bf-49f7-aa74-4f93c4b1ad5a','915e3c38-5e7d-4bf5-9214-683e99b96095','d64fb1db361578cd2d853f937fa437890b1da157d113a4a274282a6cdb82278d','2026-09-29T13:41:36.400Z','2026-09-28T13:41:36.400Z','2026-09-28T13:42:16.795Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('6ae5ae1a-1816-4d87-9720-1cd7e18f6342','915e3c38-5e7d-4bf5-9214-683e99b96095','ed5d23670e10f2e56df71c4e2952f67067e169cb73f127bcb2363ed058f0a5c1','2026-09-29T13:42:16.823Z','2026-09-28T13:42:16.823Z','2026-09-28T13:42:16.823Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('90684b05-bd62-4452-99aa-f3ecde994366','915e3c38-5e7d-4bf5-9214-683e99b96095','eaba5b2bc0ca6c5424ac104f223ca604e9a721cad60d6ecff8d144c747340eda','2026-09-29T13:42:16.823Z','2026-09-28T13:42:16.823Z','2026-09-28T13:45:21.319Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('317a3eb6-c7b7-474b-a3c8-80cc1468a460','ae7f86fe-f04d-4a1f-8a4d-bd502e6015a7','04b8d11c4c6acf07c52c0d8ca4822d0a34d4f518bf17b1b3f28ce8a2f4364b8c','2026-09-29T13:45:21.374Z','2026-09-28T13:45:21.374Z','2026-09-28T13:45:21.374Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('5c6be034-e2af-4954-9860-2d5783b8c1b3','ae7f86fe-f04d-4a1f-8a4d-bd502e6015a7','dfb53dc11ae76343379e719c1d72384d6939f695804cf2d913facfe893ea9826','2026-09-29T13:45:21.374Z','2026-09-28T13:45:21.374Z','2026-09-28T14:15:01.150Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('add800a8-44ce-4d00-888d-739051d2c578','ae7f86fe-f04d-4a1f-8a4d-bd502e6015a7','38bdf7d0bc01739080a47c14376257a90a9534cdaff7b1e59a06048a93e016a2','2026-09-29T13:45:58.909Z','2026-09-28T13:45:58.909Z','2026-09-28T13:45:58.909Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('d4be9ab2-1907-410b-a45e-9dafad49fdd3','ae7f86fe-f04d-4a1f-8a4d-bd502e6015a7','61765410187392444511f46db58df9e4c7e1d7ec7e29b8d5e3b51ff37d31b70b','2026-09-29T13:45:58.909Z','2026-09-28T13:45:58.909Z','2026-09-28T14:08:52.060Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('df6ee3a2-a428-49c5-b594-85dfb22a125d','1c2194c7-03c0-46d9-84c4-f8abdff7f1a0','28de2a664ab05c03b2090dc654638d3ca64c6962a4548a3aabb3445c9804c0be','2026-09-29T14:21:52.418Z','2026-09-28T14:21:52.418Z','2026-09-28T14:21:52.418Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('73a96d07-3ece-4270-982c-d7a605b4389d','1c2194c7-03c0-46d9-84c4-f8abdff7f1a0','67eea7112f681fec374db5aaab1dfbccf2e57a775e8e668d4461c5aa0ea6fc5f','2026-09-29T14:21:52.442Z','2026-09-28T14:21:52.442Z','2026-09-28T14:38:06.742Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('c307e81e-21b6-4ef3-8e96-d76200614bb0','3e0425b2-bf64-426f-ad42-4144a569b2e5','beed8092eade20090e8ee92ceedc9a913bb493f9af0a3b7e33a4cad714ba0bb9','2026-09-29T15:06:17.416Z','2026-09-28T15:06:17.416Z','2026-09-28T15:06:17.592Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('8f65d468-5372-41cb-b9c8-8b653097a0eb','3e0425b2-bf64-426f-ad42-4144a569b2e5','e8f0c87a04b4be9d70a8ccae80ed253cd7ad7f5205b239c8a3149bf54c597631','2026-09-29T15:06:17.537Z','2026-09-28T15:06:17.537Z','2026-09-28T15:13:39.743Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('08eb797a-8b65-4e18-b098-666830e03581','3e0425b2-bf64-426f-ad42-4144a569b2e5','44704c83957950da0a7df20769f9ac8b7f10ac51759469fd93596af782b2de5d','2026-09-29T15:13:39.779Z','2026-09-28T15:13:39.779Z','2026-09-28T15:13:39.779Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('8e4dd12a-49d3-42d2-a0e9-e937a6145394','3e0425b2-bf64-426f-ad42-4144a569b2e5','fe4a7cf23ee25ae295e763967a2e7934675deb9b226fc049d4945ac02b5a90fb','2026-09-29T15:13:39.780Z','2026-09-28T15:13:39.780Z','2026-09-28T15:13:39.818Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('db639c2b-a681-43a2-84e5-2d4a09aa0aa8','c87e9ada-c93e-401d-8369-51795d815284','57259278352ae578ac3cc4c871fd77cbb795a670d108b316493d0e86a315c940','2026-10-01T15:48:10.793Z','2026-09-30T15:48:10.793Z','2026-09-30T15:48:10.793Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('b39f6854-eaab-42e2-bff4-20f38afa1d37','c87e9ada-c93e-401d-8369-51795d815284','ed51d334b4e63c69a2b58be20725a3c089714fabc09f5a98ea067112527e9cc2','2026-10-01T15:48:10.793Z','2026-09-30T15:48:10.793Z','2026-09-30T15:53:00.460Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('31ffef6a-ce1d-469b-82eb-0a4555224154','994a6300-78cc-4d80-9b6c-4af1a4e98597','33fe13ce679e96d1db8eb8e009fdedae311adffb14a2948349c519210589e571','2026-10-01T15:53:00.525Z','2026-09-30T15:53:00.525Z','2026-09-30T15:53:00.525Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('9f62e332-2a1d-4d88-91ad-7b2e7ff1cdf1','994a6300-78cc-4d80-9b6c-4af1a4e98597','47d09a2695ba02dc89a78c6456de67d1b3f2464c949371924f42b0e83695f26d','2026-10-01T15:53:00.547Z','2026-09-30T15:53:00.547Z','2026-09-30T15:54:47.517Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('81bbfa95-7077-4bfb-b07f-84afbd52eb61','d8344bd5-98e8-4bd7-8b68-dcbf1e9c2a9f','81ae1f1bbb16a33ef323c9044820f79004cb2b2b95e220d7aae6ae162b1324d9','2026-10-01T15:55:51.106Z','2026-09-30T15:55:51.106Z','2026-09-30T15:55:51.106Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('461d14d9-6660-474e-bab9-3defa071b46d','d8344bd5-98e8-4bd7-8b68-dcbf1e9c2a9f','f4a9bf68bb887ca7b7febd98aee78e7378b0abd2c5c441aae28ca495eb326b5a','2026-10-01T15:55:51.106Z','2026-09-30T15:55:51.106Z','2026-09-30T15:55:53.236Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('ad773cb3-26cc-4bc4-88ad-0144df774925','0615ab49-e19a-4750-ad0c-77b5373cb53a','8487c8a209ef96bf01ae606814d3b7d64e68815a9a6082accae1e925bf5e306a','2026-10-01T15:55:53.338Z','2026-09-30T15:55:53.338Z','2026-09-30T15:55:53.338Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('83ff7bb4-68a3-44f7-a0b2-554d11c88feb','0615ab49-e19a-4750-ad0c-77b5373cb53a','9d31fe1975c6e6c8b05884d347baa0457a74c1f84f2307fabcfc195199f37333','2026-10-01T15:55:53.339Z','2026-09-30T15:55:53.339Z','2026-09-30T15:55:55.496Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('66666829-5a01-496f-9cf5-aa86b4876c05','db511ffa-6e97-4b68-ad1e-0ebfff416b42','5563936f5a698706982f140313c8f6befd54080bd4a0827ad2a18ccc20394ba5','2026-10-01T15:55:55.497Z','2026-09-30T15:55:55.497Z','2026-09-30T15:55:55.497Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('f9dd6971-1f99-456c-937a-a2b53217bc87','db511ffa-6e97-4b68-ad1e-0ebfff416b42','23a8d42abe9cb3457f98b64aa7c427b957fafd9dae7550f391e6e8fa895b27ca','2026-10-01T15:55:55.497Z','2026-09-30T15:55:55.497Z','2026-09-30T17:51:36.233Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('7631a937-d837-4044-97a3-e92324c0718b','af4c2c5e-9500-4040-8878-0926a1790429','a4f1a9d63ed9cbd12ec488cf8a75ace63d26d4bd300d1eeaeff527b0e47752d8','2026-10-01T17:51:36.233Z','2026-09-30T17:51:36.233Z','2026-09-30T17:51:36.233Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('36ae1505-3d63-400b-a35c-7811d77787dd','af4c2c5e-9500-4040-8878-0926a1790429','71dcaa256bc880744658ae7598de39b16143fd7996163725a990e7a0796b68ae','2026-10-01T17:51:36.235Z','2026-09-30T17:51:36.235Z','2026-09-30T17:51:51.082Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('4c15c7ed-95d1-422f-90a8-8fd96900ae84','af4c2c5e-9500-4040-8878-0926a1790429','9b6c3bcf5f8c6822a99970093d4ee126b44db7d2a3321f5d21a138276dfe939b','2026-10-01T17:51:51.084Z','2026-09-30T17:51:51.084Z','2026-09-30T17:51:51.084Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('cb0b8e46-09a4-4573-a86b-1acf3cb582b2','af4c2c5e-9500-4040-8878-0926a1790429','330d089fe87415429c9d0a4d1d78662b262b6f8380edc1f6a7e122a32fcf6026','2026-10-01T17:51:51.191Z','2026-09-30T17:51:51.191Z','2026-09-30T17:52:28.912Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('8d1a1fee-673c-46c3-926d-3d30b4ecf846','db669022-b32b-40f6-b2f9-d901eabdc7e6','01b298f9cfce0f1c13347ffb080280737115cf6eec3dee8871eb0419a2f9b815','2026-10-01T17:52:29.075Z','2026-09-30T17:52:29.075Z','2026-09-30T17:52:29.075Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('0edfbe02-0dd0-4bf8-9d78-b8e4773dfdbd','db669022-b32b-40f6-b2f9-d901eabdc7e6','5effd236b92b8289b75c5c408494f8469fdf4468f8edf6798453ace902753aea','2026-10-01T17:52:29.114Z','2026-09-30T17:52:29.114Z','2026-09-30T17:52:42.939Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('3b4977d1-4c99-4eb2-9f88-e08bdff7cd39','bdf9018d-5c6b-49ef-950e-94ca11ddcc2d','b24a4bc9f9303ed4fc7d8d359df2b63a26c8b4789c8e8d8bd612e179c45eecda','2026-10-01T17:52:42.941Z','2026-09-30T17:52:42.941Z','2026-09-30T17:52:43.110Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('e7df6e39-c8fb-4d41-8ad1-ce916fb98994','bdf9018d-5c6b-49ef-950e-94ca11ddcc2d','32829cd4f5e436be221c9c7b24a59e4f64c16908bb824e5f374538aa44a263a7','2026-10-01T17:52:43.061Z','2026-09-30T17:52:43.061Z','2026-09-30T17:57:04.510Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('d476ff3c-1776-4503-8559-0c5d0e686e71','af4c2c5e-9500-4040-8878-0926a1790429','d25fe44708535d6063ee1000ac27ca396df638892323aca5c052ff7f41acdac5','2026-09-30T19:30:18.095Z','2026-09-30T19:30:17.799Z','2026-09-30T19:30:18.092Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('367fbcbc-75f6-4802-9175-429bf2bcd843','db669022-b32b-40f6-b2f9-d901eabdc7e6','176f59abf6b89c0c1a93e8326470ff7fa10a10a73e026b4e5e8fa31ded03da98','2026-10-01T19:30:17.845Z','2026-09-30T19:30:17.845Z','2026-09-30T19:30:18.139Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('7c03d3c2-f21e-4d08-986b-cb31874f2354','5492abaf-c5e7-4cbe-9511-0ccda33db16e','76e40bfc0aecd36ae10ab1412409d5603a2d823e93bf90a066c4425baa5de908','2026-10-01T19:33:24.696Z','2026-09-30T19:33:24.696Z','2026-09-30T19:33:24.696Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('60cdd657-e3f7-4420-a952-96b05fb6ae8f','5492abaf-c5e7-4cbe-9511-0ccda33db16e','4385af0123383e8d126a588d047c40a16b83c1ebd743f773aa969eedb99bdec8','2026-10-01T19:33:24.736Z','2026-09-30T19:33:24.736Z','2026-09-30T19:36:50.874Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('a77c77ab-0907-496c-b7f3-09fb875223c8','d77bd47d-7901-4f22-8492-09cfacdf3449','4223dde3e7b8fd63fc6afc1611a53b2d43fdef3c8afde676cdbe1f27f2ecb1fb','2026-10-01T19:33:55.586Z','2026-09-30T19:33:55.586Z','2026-09-30T19:33:55.586Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('f982721a-d5e5-48d7-add8-8a9503c5ba5e','d77bd47d-7901-4f22-8492-09cfacdf3449','5cf55afb6cb7b49707ad9fe101d2d29c303e2d5dffede0c96294ee6b052ae609','2026-10-01T19:33:55.651Z','2026-09-30T19:33:55.651Z','2026-09-30T19:36:09.999Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('affe28d2-5f53-4145-8efd-83b655312205','91448815-6967-4a53-8e66-dd9fdbdb4740','3310dc411c0a8b1b514775984893410af9d517ba48e7210618e6ace2da1d58d8','2026-10-01T19:34:47.427Z','2026-09-30T19:34:47.427Z','2026-09-30T19:34:47.427Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('fb75b9ab-4f20-4826-b8c9-0f363a47da97','91448815-6967-4a53-8e66-dd9fdbdb4740','9fc84452a98ab0ceb320770cf16b46b90ea232fd8a3ed3f6d8b0f989d3c23242','2026-10-01T19:34:47.475Z','2026-09-30T19:34:47.475Z','2026-09-30T19:34:56.782Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('a44ce6b6-d649-46f8-b315-28ca2eb33c19','91448815-6967-4a53-8e66-dd9fdbdb4740','ee8d1e2d0ebf9bb03f3f731669b62e8f0beee8e3e825f0ea937ee16f5d61b405','2026-10-01T19:37:37.385Z','2026-09-30T19:37:37.385Z','2026-10-01T15:55:57.389Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('61ab1811-2462-4c17-b118-2799b46d2eb4','91448815-6967-4a53-8e66-dd9fdbdb4740','be229fe1f07bf3551398ba16805f8c222ac370a303e52c6df9e225944600d353','2026-10-01T19:37:37.385Z','2026-09-30T19:37:37.385Z','2026-09-30T19:37:37.437Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('9cad488c-71dd-4889-be54-72c88685592c','5492abaf-c5e7-4cbe-9511-0ccda33db16e','88bb62a3f36f6cf7ae7599fcaf3b41a6c16758785a89ceeb365c94f19d75c32d','2026-10-02T15:44:23.895Z','2026-10-01T15:44:23.895Z','2026-10-01T15:44:23.895Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('0c3eb632-0649-4b7c-a684-374f60988362','5492abaf-c5e7-4cbe-9511-0ccda33db16e','5f903061abfcd23d8b48622f1536aa695ba52a6c00adf17b52b990a891df3ed8','2026-10-01T15:45:07.004Z','2026-10-01T15:45:06.627Z','2026-10-01T15:45:07.000Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('99f63da0-da74-41d5-a0e7-d869c10888d8','d77bd47d-7901-4f22-8492-09cfacdf3449','592ff2bc7adb72ee35f129c6a1b11eacf89023e8bdb0927d522f483a0612bd8f','2026-10-02T15:45:06.695Z','2026-10-01T15:45:06.695Z','2026-10-01T15:45:07.047Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('ca11b96d-9e0c-4b59-9e35-a43ebc2da68f','91448815-6967-4a53-8e66-dd9fdbdb4740','10a5642e3881ea364290a94add9ec9e575c677c8173aafa1fd513cf847b98470','2026-10-02T15:45:06.787Z','2026-10-01T15:45:06.787Z','2026-10-01T15:45:06.787Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('04970867-2457-4284-ad47-b9c6b3e73fd8','5492abaf-c5e7-4cbe-9511-0ccda33db16e','43496226ae57f5dc2f890f1915ede0c9d4810831322c453ec06829ea3444c025','2026-10-01T15:46:14.137Z','2026-10-01T15:46:13.709Z','2026-10-01T15:46:14.135Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('89c3266d-d2ba-4e53-8100-efecfa7a39ef','d77bd47d-7901-4f22-8492-09cfacdf3449','e0def36c9c4faf06e863e6dbf0e14657653610146fec86ac630255bd4a293c00','2026-10-02T15:46:13.773Z','2026-10-01T15:46:13.773Z','2026-10-01T15:46:14.173Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('51da9569-eb8a-4485-b8ae-1949887e732f','91448815-6967-4a53-8e66-dd9fdbdb4740','297040771762c6bbfd724a13ab786d85d9337694defff7c10c677ce60bc34b2b','2026-10-02T15:46:13.857Z','2026-10-01T15:46:13.857Z','2026-10-01T15:46:13.857Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('ae806582-1ce8-4597-92b3-5b373c78c671','2c673a49-0315-47e2-b3ea-07e1870c6508','142439ad7acbb283d0d8c05a5b4208870448bba2296984982fbb175d02b1571f','2026-10-02T15:56:34.926Z','2026-10-01T15:56:34.926Z','2026-10-01T15:56:34.926Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('794bba4d-47f6-4971-aa92-9f310077b149','2c673a49-0315-47e2-b3ea-07e1870c6508','1bf80d5dac47cb9065046b29fd4df0f4c95a852450d0c61b158dc000b267d091','2026-10-02T15:56:34.974Z','2026-10-01T15:56:34.974Z','2026-10-01T15:56:59.494Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('9da54618-bad1-4428-88f8-f46fbcc3d874','650f84d8-a15e-4d07-96af-0fa94451ba71','0bfe1ec9a27c1e5ad7d34b7d2a01b0e1433171891c4eb9b2cfa8c8a20017ef2f','2026-10-02T16:38:35.333Z','2026-10-01T16:38:35.333Z','2026-10-01T16:38:35.333Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('d3d474b2-3852-4917-8cb5-5f9f92f5f9d6','650f84d8-a15e-4d07-96af-0fa94451ba71','acf2194780159f40f331ccddbefe108a0b93a327d5ff147c41fdf2a1987a6fd0','2026-10-02T16:38:35.358Z','2026-10-01T16:38:35.358Z','2026-10-01T16:50:50.749Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('316f386f-9754-4124-935f-264ef437c98f','dcf6c7e1-e34d-4566-b9ec-5bb65c3c5975','e91638db4cd995ca2586ef964639ddfa4c621d84dd09828040764cf02f67aa76','2026-10-02T16:50:04.167Z','2026-10-01T16:50:04.167Z','2026-10-01T16:50:04.167Z');
+INSERT INTO "customer_sessions" ("id","table_session_id","session_token_hash","expires_at","created_at","last_seen_at") VALUES('04525d3f-8c5a-487a-915d-ad25b7f48f46','dcf6c7e1-e34d-4566-b9ec-5bb65c3c5975','7a8486158bf8bc037c69022e8b749a3ad9e813ba9b1567d485c53e8d112f7589','2026-10-02T16:50:04.202Z','2026-10-01T16:50:04.202Z','2026-10-01T17:26:28.405Z');
+CREATE TABLE menu_categories (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    active INTEGER NOT NULL DEFAULT 1
+        CHECK (active IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+INSERT INTO "menu_categories" ("id","name","sort_order","active","created_at","updated_at") VALUES('dev-cat-1','Main Course',1,1,'2026-09-27 15:49:53','2026-09-27 15:49:53');
+INSERT INTO "menu_categories" ("id","name","sort_order","active","created_at","updated_at") VALUES('dev-cat-2','Breads',2,1,'2026-09-27 15:49:53','2026-09-27 15:49:53');
+INSERT INTO "menu_categories" ("id","name","sort_order","active","created_at","updated_at") VALUES('dev-cat-3','Beverages',3,1,'2026-09-27 15:49:53','2026-09-27 16:08:08');
+CREATE TABLE menu_items (
+    id TEXT PRIMARY KEY,
+    category_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    price_minor INTEGER NOT NULL
+        CHECK (price_minor >= 0),
+    available INTEGER NOT NULL DEFAULT 1
+        CHECK (available IN (0, 1)),
+    archived INTEGER NOT NULL DEFAULT 0
+        CHECK (archived IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_menu_items_category
+        FOREIGN KEY (category_id)
+        REFERENCES menu_categories(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+);
+INSERT INTO "menu_items" ("id","category_id","name","description","price_minor","available","archived","created_at","updated_at") VALUES('dev-item-1','dev-cat-1','Chicken Biryani','Aromatic chicken biryani',12000,1,0,'2026-09-27 15:49:53','2026-09-30 17:47:11');
+INSERT INTO "menu_items" ("id","category_id","name","description","price_minor","available","archived","created_at","updated_at") VALUES('dev-item-2','dev-cat-1','Chilli Chicken','Spicy chilli chicken',18900,1,0,'2026-09-27 15:49:53','2026-09-27 15:49:53');
+INSERT INTO "menu_items" ("id","category_id","name","description","price_minor","available","archived","created_at","updated_at") VALUES('dev-item-3','dev-cat-2','Laccha Paratha','Layered Indian flatbread',4990,1,0,'2026-09-27 15:49:53','2026-09-27 15:49:53');
+INSERT INTO "menu_items" ("id","category_id","name","description","price_minor","available","archived","created_at","updated_at") VALUES('dev-item-4','dev-cat-3','Masala Chai','Indian spiced tea',3990,1,0,'2026-09-27 15:49:53','2026-09-27 15:49:53');
+INSERT INTO "menu_items" ("id","category_id","name","description","price_minor","available","archived","created_at","updated_at") VALUES('35e5cdacd1b6591c3f37b49df1afc7aa','dev-cat-1','Chicken briyani',NULL,18000,1,0,'2026-09-27 16:08:24','2026-09-27 16:08:24');
+INSERT INTO "menu_items" ("id","category_id","name","description","price_minor","available","archived","created_at","updated_at") VALUES('3dba582686679660d7020eb6460c13d0','dev-cat-3','Diet Coke','Diet Coke , a zero sugar drink , crisp tatste',5000,1,0,'2026-09-30 15:47:41','2026-09-30 15:47:41');
+INSERT INTO "menu_items" ("id","category_id","name","description","price_minor","available","archived","created_at","updated_at") VALUES('017ce000c1da48e25b1d164eee4a1c9f','dev-cat-3','Cold Coffe','Greatly brew cold coffee with aeropress',7000,1,0,'2026-09-30 17:45:07','2026-09-30 17:45:07');
+CREATE TABLE orders (
+    id TEXT PRIMARY KEY,
+    table_session_id TEXT NOT NULL,
+    customer_session_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'NEW'
+        CHECK (
+            status IN (
+                'NEW',
+                'ACCEPTED',
+                'PREPARING',
+                'READY',
+                'SERVED'
+            )
+        ),
+    total_amount_minor INTEGER NOT NULL DEFAULT 0
+        CHECK (total_amount_minor >= 0),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, accepted_at TEXT,
+
+    CONSTRAINT fk_orders_table_session
+        FOREIGN KEY (table_session_id)
+        REFERENCES table_sessions(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    CONSTRAINT fk_orders_customer_session
+        FOREIGN KEY (customer_session_id)
+        REFERENCES customer_sessions(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+);
+CREATE TABLE order_items (
+    id TEXT PRIMARY KEY,
+    order_id TEXT NOT NULL,
+    menu_item_id TEXT NOT NULL,
+    item_name_snapshot TEXT NOT NULL,
+    unit_price_minor INTEGER NOT NULL
+        CHECK (unit_price_minor >= 0),
+    quantity INTEGER NOT NULL
+        CHECK (quantity > 0),
+    line_total_minor INTEGER NOT NULL
+        CHECK (line_total_minor >= 0),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_order_items_order
+        FOREIGN KEY (order_id)
+        REFERENCES orders(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_order_items_menu_item
+        FOREIGN KEY (menu_item_id)
+        REFERENCES menu_items(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+);
+CREATE TABLE order_status_history (
+    id TEXT PRIMARY KEY,
+    order_id TEXT NOT NULL,
+    from_status TEXT,
+    to_status TEXT NOT NULL
+        CHECK (
+            to_status IN (
+                'NEW',
+                'ACCEPTED',
+                'PREPARING',
+                'READY',
+                'SERVED'
+            )
+        ),
+    changed_by_user_id TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_order_status_history_order
+        FOREIGN KEY (order_id)
+        REFERENCES orders(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_order_status_history_user
+        FOREIGN KEY (changed_by_user_id)
+        REFERENCES users(id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+
+    CONSTRAINT chk_order_status_history_from_status
+        CHECK (
+            from_status IS NULL
+            OR from_status IN (
+                'NEW',
+                'ACCEPTED',
+                'PREPARING',
+                'READY',
+                'SERVED'
+            )
+        )
+);
+CREATE TABLE festivals (
+    id TEXT PRIMARY KEY,
+    category TEXT NOT NULL
+        CHECK (category IN ('ODISHA', 'INDIAN', 'CUSTOM')),
+    name TEXT NOT NULL,
+    description TEXT,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 0
+        CHECK (active IN (0, 1)),
+    archived INTEGER NOT NULL DEFAULT 0
+        CHECK (archived IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT chk_festivals_date_range
+        CHECK (end_date >= start_date)
+);
+INSERT INTO "festivals" ("id","category","name","description","start_date","end_date","active","archived","created_at","updated_at") VALUES('dev-festival-1','INDIAN','Development Festival','Development test festival','2026-01-01','2027-12-31',1,0,'2026-09-27 15:49:53','2026-09-27 15:49:53');
+CREATE TABLE special_menus (
+    id TEXT PRIMARY KEY,
+    festival_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 0
+        CHECK (active IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_special_menus_festival
+        FOREIGN KEY (festival_id)
+        REFERENCES festivals(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+);
+INSERT INTO "special_menus" ("id","festival_id","name","active","created_at") VALUES('dev-special-menu-1','dev-festival-1','Festival Specials',1,'2026-09-27 15:49:53');
+CREATE TABLE special_menu_items (
+    id TEXT PRIMARY KEY,
+    special_menu_id TEXT NOT NULL,
+    menu_item_id TEXT NOT NULL,
+    special_price_minor INTEGER
+        CHECK (special_price_minor >= 0),
+    available INTEGER NOT NULL DEFAULT 1
+        CHECK (available IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_special_menu_items_special_menu
+        FOREIGN KEY (special_menu_id)
+        REFERENCES special_menus(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_special_menu_items_menu_item
+        FOREIGN KEY (menu_item_id)
+        REFERENCES menu_items(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+
+    CONSTRAINT uq_special_menu_item
+        UNIQUE (special_menu_id, menu_item_id)
+);
+INSERT INTO "special_menu_items" ("id","special_menu_id","menu_item_id","special_price_minor","available","created_at") VALUES('dev-special-item-1','dev-special-menu-1','dev-item-1',21900,1,'2026-09-27 15:49:53');
+INSERT INTO "special_menu_items" ("id","special_menu_id","menu_item_id","special_price_minor","available","created_at") VALUES('dev-special-item-2','dev-special-menu-1','dev-item-3',3990,1,'2026-09-27 15:49:53');
+CREATE TABLE audit_logs (
+    id TEXT PRIMARY KEY,
+    user_id TEXT,
+    action TEXT NOT NULL,
+    entity_type TEXT,
+    entity_id TEXT,
+    details_json TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_audit_logs_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL
+);
+CREATE TABLE staff_sessions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_staff_sessions_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+);
+INSERT INTO "staff_sessions" ("id","user_id","token_hash","expires_at","created_at","last_seen_at") VALUES('be7ec9de2e6bafd02e742be341c5f837','staff-amitesh-001','61c6737eab692248f3b2bee520f7b1b92178a011f9e56ad7f4d9079f13da30ab','2026-10-04 22:10:13','2026-09-27 22:10:13','2026-09-27 22:32:03');
+INSERT INTO "staff_sessions" ("id","user_id","token_hash","expires_at","created_at","last_seen_at") VALUES('1885c62ccdd310aab6e40846616678e8','staff-amitesh-001','159bb200355983252e2e4bef2064c07f8acc43bad97840b419617a5bdd735149','2026-10-05 13:36:58','2026-09-28 13:36:58','2026-09-28 14:10:00');
+INSERT INTO "staff_sessions" ("id","user_id","token_hash","expires_at","created_at","last_seen_at") VALUES('5830760c2dea5a312bad29096bc804ce','staff-amitesh-001','9422f53af7028909c7c5f7fdc14685899cc9d673c10260d36b172627d40008db','2026-10-05 14:20:08','2026-09-28 14:20:08','2026-09-28 14:38:00');
+INSERT INTO "staff_sessions" ("id","user_id","token_hash","expires_at","created_at","last_seen_at") VALUES('a870e83975fa96a423596ad8ae8d8a1b','staff-amitesh-001','3f390a2034c92e75f89c2dfb03b03b0e004c39c61947ab616f29e76c3de32cd7','2026-10-05 15:05:35','2026-09-28 15:05:35','2026-09-30 16:32:54');
+INSERT INTO "staff_sessions" ("id","user_id","token_hash","expires_at","created_at","last_seen_at") VALUES('74a69053451e2df3fe90608cf28cf2f8','staff-amitesh-001','d4f64c084c2c93aa692f43bfc2a161d3866c77a2e7850aba8b0ad7282d8ba17c','2026-10-07 17:44:03','2026-09-30 17:44:03','2026-10-01 17:57:04');
+INSERT INTO "staff_sessions" ("id","user_id","token_hash","expires_at","created_at","last_seen_at") VALUES('2b35f66a-95f4-45a1-a9f5-00bee8e027e4','dev-staff-1','a383a178af078705fecb50e1b7e85e0c3c0e81934c2d11015f90dbc1676b4f77','2026-10-02T15:46:13.929Z','2026-10-01T15:46:13.473Z','2026-10-01 15:46:13');
+DELETE FROM sqlite_sequence;
+INSERT INTO "sqlite_sequence" ("name","seq") VALUES('d1_migrations',5);
+CREATE INDEX idx_users_role
+    ON users(role);
+CREATE INDEX idx_users_active
+    ON users(active);
+CREATE INDEX idx_locations_active
+    ON locations(active);
+CREATE INDEX idx_tables_location
+    ON tables(location_id);
+CREATE INDEX idx_tables_active
+    ON tables(active);
+CREATE INDEX idx_qr_tokens_table
+    ON qr_tokens(table_id);
+CREATE INDEX idx_qr_tokens_active
+    ON qr_tokens(active);
+CREATE INDEX idx_table_sessions_table_status
+    ON table_sessions(table_id, status);
+CREATE INDEX idx_table_sessions_status
+    ON table_sessions(status);
+CREATE INDEX idx_customer_sessions_table_session
+    ON customer_sessions(table_session_id);
+CREATE INDEX idx_customer_sessions_expires
+    ON customer_sessions(expires_at);
+CREATE INDEX idx_menu_categories_active_sort
+    ON menu_categories(active, sort_order);
+CREATE INDEX idx_menu_items_category
+    ON menu_items(category_id);
+CREATE INDEX idx_menu_items_category_available
+    ON menu_items(category_id, available);
+CREATE INDEX idx_menu_items_archived
+    ON menu_items(archived);
+CREATE INDEX idx_orders_table_session_created
+    ON orders(table_session_id, created_at);
+CREATE INDEX idx_orders_status_created
+    ON orders(status, created_at);
+CREATE INDEX idx_orders_customer_session
+    ON orders(customer_session_id);
+CREATE INDEX idx_order_items_order
+    ON order_items(order_id);
+CREATE INDEX idx_order_items_menu_item
+    ON order_items(menu_item_id);
+CREATE INDEX idx_order_status_history_order_created
+    ON order_status_history(order_id, created_at);
+CREATE INDEX idx_order_status_history_user
+    ON order_status_history(changed_by_user_id);
+CREATE INDEX idx_festivals_category
+    ON festivals(category);
+CREATE INDEX idx_festivals_active_dates
+    ON festivals(active, start_date, end_date);
+CREATE INDEX idx_festivals_archived
+    ON festivals(archived);
+CREATE INDEX idx_special_menus_festival
+    ON special_menus(festival_id);
+CREATE INDEX idx_special_menus_active
+    ON special_menus(active);
+CREATE INDEX idx_special_menu_items_special_menu
+    ON special_menu_items(special_menu_id);
+CREATE INDEX idx_special_menu_items_menu_item
+    ON special_menu_items(menu_item_id);
+CREATE INDEX idx_audit_logs_user_created
+    ON audit_logs(user_id, created_at);
+CREATE INDEX idx_audit_logs_entity
+    ON audit_logs(entity_type, entity_id);
+CREATE INDEX idx_audit_logs_action_created
+    ON audit_logs(action, created_at);
+CREATE UNIQUE INDEX idx_one_active_table_session_per_table
+    ON table_sessions(table_id)
+    WHERE status = 'ACTIVE';
+CREATE INDEX idx_staff_sessions_user
+    ON staff_sessions(user_id);
+CREATE INDEX idx_staff_sessions_expires
+    ON staff_sessions(expires_at);
+CREATE INDEX idx_orders_accepted_at
+    ON orders(accepted_at);
+CREATE INDEX idx_orders_status_accepted_at
+    ON orders(status, accepted_at);

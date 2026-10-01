@@ -7,6 +7,7 @@
     "dev:customer": "pnpm --filter @d-den-corner/customer dev",
     "dev:staff": "pnpm --filter @d-den-corner/staff dev",
     "dev:api": "pnpm --filter @d-den-corner/api dev",
+    "dev:api:local": "pnpm --filter @d-den-corner/api dev:local",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
