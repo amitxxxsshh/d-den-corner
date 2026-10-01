@@ -333,18 +333,137 @@ export async function createOrder(
   }
 
   /*
-   * IMPORTANT DATABASE ORDER
-   *
-   * 1. orders
-   * 2. order_items
-   * 3. order_status_history
-   *
-   * All three writes are executed in one D1 batch.
-   *
-   * This guarantees that we don't end up with:
-   * - an order without items
-   * - items without an order
-   * - an order without its initial status history
+   * Check if the table already has an active order (NEW or ACCEPTED).
+   * If an active order exists, append the new items to it instead of creating a new order ID.
+   */
+  const existingActiveOrder = await queryOne<OrderRow>(
+    db,
+    `
+      SELECT
+        o.id,
+        o.table_session_id,
+        o.customer_session_id,
+        o.status,
+        o.total_amount_minor,
+        o.accepted_at,
+        o.created_at,
+        o.updated_at
+      FROM orders o
+      JOIN table_sessions ts ON ts.id = o.table_session_id
+      WHERE (
+        o.table_session_id = ?
+        OR ts.table_id = (SELECT table_id FROM table_sessions WHERE id = ?)
+      )
+        AND ts.status = 'ACTIVE'
+        AND o.status IN ('NEW', 'ACCEPTED')
+      ORDER BY o.created_at ASC
+      LIMIT 1
+    `,
+    tableSessionId,
+    tableSessionId,
+  );
+
+  const targetExistingOrder =
+    existingActiveOrder ||
+    (await queryOne<OrderRow>(
+      db,
+      `
+        SELECT
+          o.id,
+          o.table_session_id,
+          o.customer_session_id,
+          o.status,
+          o.total_amount_minor,
+          o.accepted_at,
+          o.created_at,
+          o.updated_at
+        FROM orders o
+        LEFT JOIN table_sessions ts ON ts.id = o.table_session_id
+        WHERE o.table_session_id = ?
+          AND (ts.status = 'ACTIVE' OR ts.status IS NULL)
+          AND o.status IN ('NEW', 'ACCEPTED')
+        ORDER BY o.created_at ASC
+        LIMIT 1
+      `,
+      tableSessionId,
+    ));
+
+  if (targetExistingOrder) {
+    const existingOrderId = targetExistingOrder.id;
+
+    const statements = [
+      db
+        .prepare(
+          `
+            UPDATE orders
+            SET
+              total_amount_minor = total_amount_minor + ?,
+              updated_at = ?
+            WHERE id = ?
+          `,
+        )
+        .bind(
+          totalAmountMinor,
+          createdAt,
+          existingOrderId,
+        ),
+
+      ...preparedItems.map((item) =>
+        db
+          .prepare(
+            `
+              INSERT INTO order_items (
+                id,
+                order_id,
+                menu_item_id,
+                item_name_snapshot,
+                unit_price_minor,
+                quantity,
+                line_total_minor,
+                created_at
+              )
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `,
+          )
+          .bind(
+            item.id,
+            existingOrderId,
+            item.menuItemId,
+            item.itemName,
+            item.unitPriceMinor,
+            item.quantity,
+            item.lineTotalMinor,
+            createdAt,
+          ),
+      ),
+    ];
+
+    await db.batch(statements);
+
+    const allItems = await getOrderItems(db, existingOrderId);
+
+    return {
+      id: existingOrderId,
+      table_session_id: targetExistingOrder.table_session_id,
+      customer_session_id: customerSessionId,
+      status: targetExistingOrder.status,
+      total_amount_minor: targetExistingOrder.total_amount_minor + totalAmountMinor,
+      accepted_at: targetExistingOrder.accepted_at,
+      items: allItems.map((item) => ({
+        id: item.id,
+        menu_item_id: item.menu_item_id,
+        item_name_snapshot: item.item_name_snapshot,
+        unit_price_minor: item.unit_price_minor,
+        quantity: item.quantity,
+        line_total_minor: item.line_total_minor,
+      })),
+      created_at: targetExistingOrder.created_at,
+    };
+  }
+
+  /*
+   * No active order exists for this table.
+   * Create a new order with a new Order ID.
    */
   const statements = [
     db
@@ -678,6 +797,160 @@ export async function getOrderHistoryForCustomerSession(
   );
 }
 
+export interface ActiveStaffOrder extends OrderRow {
+  table: {
+    id: string;
+    name: string;
+  } | null;
+  items: OrderItemRow[];
+}
+
+export interface ActiveTableGroup {
+  tableId: string;
+  tableName: string;
+  orders: ActiveStaffOrder[];
+}
+
+export function parseTableNumber(name: string): number | null {
+  if (!name) return null;
+  const match = name.match(/\d+/);
+  return match ? parseInt(match[0], 10) : null;
+}
+
+export function compareTableNamesNumerically(
+  nameA: string,
+  nameB: string,
+): number {
+  const numA = parseTableNumber(nameA);
+  const numB = parseTableNumber(nameB);
+
+  if (numA !== null && numB !== null) {
+    if (numA !== numB) {
+      return numA - numB;
+    }
+  } else if (numA !== null) {
+    return -1;
+  } else if (numB !== null) {
+    return 1;
+  }
+
+  return (nameA || "").localeCompare(nameB || "", undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
+export async function getActiveStaffOrders(
+  db: D1Database,
+): Promise<{ orders: ActiveStaffOrder[]; tables: ActiveTableGroup[] }> {
+  const orderRows = await queryMany<
+    OrderRow & { table_id: string | null; table_name: string | null }
+  >(
+    db,
+    `
+      SELECT
+        o.id,
+        o.table_session_id,
+        o.customer_session_id,
+        o.status,
+        o.total_amount_minor,
+        o.accepted_at,
+        o.created_at,
+        o.updated_at,
+        t.id AS table_id,
+        t.name AS table_name
+      FROM orders o
+      LEFT JOIN table_sessions ts ON ts.id = o.table_session_id
+      LEFT JOIN tables t ON t.id = ts.table_id
+      WHERE o.status IN ('NEW', 'ACCEPTED')
+        AND (ts.status = 'ACTIVE' OR ts.status IS NULL)
+      ORDER BY o.created_at ASC
+    `,
+  );
+
+  if (orderRows.length === 0) {
+    return { orders: [], tables: [] };
+  }
+
+  const orderIds = orderRows.map((o) => o.id);
+  const placeholders = orderIds.map(() => "?").join(", ");
+
+  const items = await queryMany<OrderItemRow>(
+    db,
+    `
+      SELECT
+        id,
+        order_id,
+        menu_item_id,
+        item_name_snapshot,
+        unit_price_minor,
+        quantity,
+        line_total_minor,
+        created_at
+      FROM order_items
+      WHERE order_id IN (${placeholders})
+      ORDER BY created_at ASC
+    `,
+    ...orderIds,
+  );
+
+  const itemsByOrderId = new Map<string, OrderItemRow[]>();
+  for (const item of items) {
+    const list = itemsByOrderId.get(item.order_id);
+    if (list) {
+      list.push(item);
+    } else {
+      itemsByOrderId.set(item.order_id, [item]);
+    }
+  }
+
+  const orders: ActiveStaffOrder[] = orderRows.map((row) => ({
+    id: row.id,
+    table_session_id: row.table_session_id,
+    customer_session_id: row.customer_session_id,
+    status: row.status,
+    total_amount_minor: row.total_amount_minor,
+    accepted_at: row.accepted_at,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    table: row.table_id
+      ? {
+          id: row.table_id,
+          name: row.table_name || "Table",
+        }
+      : null,
+    items: itemsByOrderId.get(row.id) || [],
+  }));
+
+  const groupsMap = new Map<string, ActiveTableGroup>();
+  for (const order of orders) {
+    const tableId = order.table?.id || "unassigned";
+    const tableName = order.table?.name || "Unassigned Table";
+
+    let group = groupsMap.get(tableId);
+    if (!group) {
+      group = {
+        tableId,
+        tableName,
+        orders: [order],
+      };
+      groupsMap.set(tableId, group);
+    } else {
+      // Consolidate any existing multiple orders into the primary active order
+      const primaryOrder = group.orders[0];
+      primaryOrder.items.push(...order.items);
+      primaryOrder.total_amount_minor += order.total_amount_minor;
+    }
+  }
+
+  const tables = Array.from(groupsMap.values());
+  tables.sort((a, b) => compareTableNamesNumerically(a.tableName, b.tableName));
+
+  const consolidatedOrders = tables.map((t) => t.orders[0]).filter(Boolean);
+
+  return { orders: consolidatedOrders, tables };
+}
+
 export async function getActiveOrders(
   db: D1Database,
 ): Promise<OrderRow[]> {
@@ -696,14 +969,13 @@ export async function getActiveOrders(
       FROM orders
       WHERE status IN (
         'NEW',
-        'ACCEPTED',
-        'PREPARING',
-        'READY'
+        'ACCEPTED'
       )
       ORDER BY created_at ASC
     `,
   );
 }
+
 
 export async function getOrdersByStatus(
   db: D1Database,

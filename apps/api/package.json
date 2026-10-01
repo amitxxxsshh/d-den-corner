@@ -5,7 +5,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy --minify",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
-    "test": "tsx test/dashboard.test.ts",
+    "test": "tsx test/dashboard.test.ts && tsx test/active-orders.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -2,16 +2,16 @@ import type { OrderStatus } from "../types/orders";
 
 const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
   NEW: "ACCEPTED",
-  ACCEPTED: "PREPARING",
-  PREPARING: "READY",
-  READY: "SERVED",
+  ACCEPTED: null,
+  PREPARING: null,
+  READY: null,
   SERVED: null,
 };
 
 export function getNextOrderStatus(
   status: OrderStatus,
 ): OrderStatus | null {
-  return NEXT_STATUS[status];
+  return NEXT_STATUS[status] ?? null;
 }
 
 export function canTransitionOrderStatus(
@@ -19,4 +19,4 @@ export function canTransitionOrderStatus(
   toStatus: OrderStatus,
 ): boolean {
   return NEXT_STATUS[fromStatus] === toStatus;
-}
+}

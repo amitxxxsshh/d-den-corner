@@ -16,73 +16,72 @@ import {
 
 import {
   advanceOrderStatus,
+  completeOrder,
   getStaffOrders,
 } from "../lib/orders";
 
 import StaffNavbar from "../components/StaffNavbar";
-import StaffOrderCard from "../components/orders/StaffOrderCard";
+import StaffTableGroup from "../components/orders/StaffTableGroup";
 
-const STATUS_ORDER = [
-  "NEW",
-  "ACCEPTED",
-  "PREPARING",
-  "READY",
-];
+function parseTableNumber(name) {
+  if (!name) return null;
+  const match = name.match(/\d+/);
+  return match ? parseInt(match[0], 10) : null;
+}
 
-const STATUS_TITLES = {
-  NEW: { title: "New Orders", color: "bg-amber-warm/20 text-amber-gold border-amber-warm/40" },
-  ACCEPTED: { title: "Accepted", color: "bg-amber-warm/25 text-charcoal-deep border-amber-warm/50" },
-  PREPARING: { title: "Kitchen Prep", color: "bg-charcoal-deep text-amber-light border-amber-warm/30" },
-  READY: { title: "Ready to Serve", color: "bg-forest/20 text-forest border-forest/40" },
-};
+function compareTableNamesNumerically(nameA, nameB) {
+  const numA = parseTableNumber(nameA);
+  const numB = parseTableNumber(nameB);
+
+  if (numA !== null && numB !== null) {
+    if (numA !== numB) {
+      return numA - numB;
+    }
+  } else if (numA !== null) {
+    return -1;
+  } else if (numB !== null) {
+    return 1;
+  }
+
+  return (nameA || "").localeCompare(nameB || "", undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
 
 export default function Home() {
   const router = useRouter();
 
-  const [orders, setOrders] =
-    useState([]);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [busyOrderId, setBusyOrderId] = useState(null);
+  const [staff, setStaff] = useState(null);
 
-  const [loading, setLoading] =
-    useState(true);
+  const loadOrders = useCallback(async () => {
+    try {
+      setError("");
 
-  const [error, setError] =
-    useState("");
+      const response = await getStaffOrders();
 
-  const [busyOrderId, setBusyOrderId] =
-    useState(null);
-
-  const [staff, setStaff] =
-    useState(null);
-
-  const loadOrders =
-    useCallback(async () => {
-      try {
-        setError("");
-
-        const response =
-          await getStaffOrders();
-
-        setOrders(
-          response.orders || [],
-        );
-      } catch (requestError) {
-        setError(
-          requestError instanceof Error
-            ? requestError.message
-            : "Unable to load staff orders.",
-        );
-      } finally {
-        setLoading(false);
-      }
-    }, []);
+      setOrders(response.orders || []);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to load staff orders.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
 
     async function initialize() {
       try {
-        const response =
-          await getCurrentStaff();
+        const response = await getCurrentStaff();
 
         if (!mounted) {
           return;
@@ -93,9 +92,7 @@ export default function Home() {
         await loadOrders();
       } catch {
         if (mounted) {
-          router.replace(
-            "/login",
-          );
+          router.replace("/login");
         }
       }
     }
@@ -112,16 +109,10 @@ export default function Home() {
       return;
     }
 
-    const interval =
-      window.setInterval(
-        loadOrders,
-        5000,
-      );
+    const interval = window.setInterval(loadOrders, 5000);
 
     return () => {
-      window.clearInterval(
-        interval,
-      );
+      window.clearInterval(interval);
     };
   }, [staff, loadOrders]);
 
@@ -129,36 +120,27 @@ export default function Home() {
     try {
       await logoutStaff();
     } finally {
-      router.replace(
-        "/login",
-      );
+      router.replace("/login");
       router.refresh();
     }
   }
 
-  async function handleAdvance(
-    orderId,
-  ) {
+  async function handleAcceptOrder(orderId) {
     try {
       setBusyOrderId(orderId);
       setError("");
 
-      const response =
-        await advanceOrderStatus(
-          orderId,
-        );
+      const response = await advanceOrderStatus(orderId);
 
-      setOrders(
-        (currentOrders) =>
-          currentOrders.map(
-            (order) =>
-              order.id === orderId
-                ? {
-                    ...order,
-                    ...response.order,
-                  }
-                : order,
-          ),
+      setOrders((currentOrders) =>
+        currentOrders.map((order) =>
+          order.id === orderId
+            ? {
+                ...order,
+                ...response.order,
+              }
+            : order,
+        ),
       );
     } catch (requestError) {
       setError(
@@ -171,25 +153,54 @@ export default function Home() {
     }
   }
 
-  const groupedOrders =
-    useMemo(() => {
-      return STATUS_ORDER.reduce(
-        (
-          groups,
-          status,
-        ) => {
-          groups[status] =
-            orders.filter(
-              (order) =>
-                order.status ===
-                status,
-            );
+  async function handleCompleteOrder(orderId) {
+    try {
+      setBusyOrderId(orderId);
+      setError("");
 
-          return groups;
-        },
-        {},
+      await completeOrder(orderId);
+
+      await loadOrders();
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to complete order.",
       );
-    }, [orders]);
+    } finally {
+      setBusyOrderId(null);
+    }
+  }
+
+  // Filter only active orders (NEW and ACCEPTED), group by table, and sort tables numerically
+  const tableGroups = useMemo(() => {
+    const activeOrders = orders.filter(
+      (order) => order.status === "NEW" || order.status === "ACCEPTED",
+    );
+
+    const map = new Map();
+
+    for (const order of activeOrders) {
+      const tableId = order.table?.id || "unassigned";
+      const tableName = order.table?.name || "Unassigned Table";
+
+      let group = map.get(tableId);
+      if (!group) {
+        group = {
+          tableId,
+          tableName,
+          orders: [],
+        };
+        map.set(tableId, group);
+      }
+      group.orders.push(order);
+    }
+
+    const groups = Array.from(map.values());
+    groups.sort((a, b) => compareTableNamesNumerically(a.tableName, b.tableName));
+
+    return groups;
+  }, [orders]);
 
   if (!staff) {
     return (
@@ -207,7 +218,11 @@ export default function Home() {
     );
   }
 
-  const totalActive = orders.length;
+  const activeOrdersCount = orders.filter(
+    (o) => o.status === "NEW" || o.status === "ACCEPTED",
+  ).length;
+
+  const totalNewCount = orders.filter((o) => o.status === "NEW").length;
 
   return (
     <main className="min-h-screen bg-cream-soft text-charcoal-deep flex flex-col pb-16">
@@ -223,17 +238,28 @@ export default function Home() {
       <div className="border-b border-stone/30 bg-white/60 px-4 py-5 sm:px-6 lg:px-8 backdrop-blur-xs">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl sm:text-2xl font-bold font-serif text-charcoal-deep tracking-tight">
-                Live Kitchen &amp; Floor Operations
+                Live Active Table Orders
               </h1>
-              <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-forest text-[11px] font-black text-cream-soft px-2">
-                {totalActive} {totalActive === 1 ? "Order" : "Orders"}
+
+              <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-forest text-[11px] font-black text-cream-soft px-2.5">
+                {activeOrdersCount} {activeOrdersCount === 1 ? "Order" : "Orders"}
               </span>
+
+              <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-charcoal-deep text-[11px] font-black text-cream-soft px-2.5">
+                {tableGroups.length} {tableGroups.length === 1 ? "Table" : "Tables"}
+              </span>
+
+              {totalNewCount > 0 && (
+                <span className="flex h-6 items-center justify-center rounded-full bg-amber-warm px-2.5 text-[11px] font-black text-charcoal-deep animate-pulse">
+                  {totalNewCount} New to Accept
+                </span>
+              )}
             </div>
 
             <p className="mt-0.5 text-xs text-charcoal-deep/65">
-              Manage incoming customer table orders through kitchen stages. Updates automatically.
+              Live customer table orders grouped by dining table. Workflow: NEW → ACCEPTED. Updates automatically.
             </p>
           </div>
 
@@ -244,63 +270,50 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Kanban Order Columns */}
+      {/* Main Content Area - Strict Vertical Layout (One Table Per Row) */}
       <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
         {error ? (
-          <div className="mb-6 rounded-2xl border border-terracotta/30 bg-terracotta/10 px-5 py-3.5 text-xs text-terracotta">
-            {error}
+          <div className="mb-6 rounded-2xl border border-terracotta/30 bg-terracotta/10 px-5 py-3.5 text-xs text-terracotta flex items-center justify-between">
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={loadOrders}
+              className="underline font-bold ml-4"
+            >
+              Retry
+            </button>
           </div>
         ) : null}
 
         {loading && orders.length === 0 ? (
-          <div className="flex min-h-[300px] items-center justify-center rounded-3xl border border-stone/40 bg-white p-8 text-center text-xs text-charcoal-deep/60">
-            Loading operational orders...
+          <div className="flex min-h-[300px] flex-col items-center justify-center rounded-3xl border border-stone/40 bg-white p-8 text-center text-xs text-charcoal-deep/60 gap-3">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-stone/30 border-t-amber-warm" />
+            <span>Loading active table orders...</span>
+          </div>
+        ) : tableGroups.length === 0 ? (
+          <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed border-stone/50 bg-white/60 p-8 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-cream-warm/60 border border-stone/40 mb-3">
+              <span className="text-xl text-forest font-bold">✓</span>
+            </div>
+            <h3 className="text-base font-bold font-serif text-charcoal-deep">
+              No Active Orders
+            </h3>
+            <p className="mt-1 max-w-sm text-xs text-charcoal-deep/60">
+              There are no pending or active customer table orders right now. New customer orders will appear here automatically.
+            </p>
           </div>
         ) : (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            {STATUS_ORDER.map((status) => {
-              const statusItems = groupedOrders[status] || [];
-              const config = STATUS_TITLES[status];
-
-              return (
-                <section
-                  key={status}
-                  className="flex flex-col rounded-3xl border border-stone/40 bg-cream-warm/30 p-3 sm:p-4"
-                >
-                  {/* Column Header */}
-                  <div className="mb-3.5 flex items-center justify-between px-1">
-                    <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-charcoal-deep" />
-                      <h2 className="text-xs font-bold uppercase tracking-wider text-charcoal-deep">
-                        {config.title}
-                      </h2>
-                    </div>
-
-                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-charcoal-deep px-1.5 text-[10px] font-black text-cream-soft">
-                      {statusItems.length}
-                    </span>
-                  </div>
-
-                  {/* Orders In This Status */}
-                  <div className="space-y-3.5 flex-1">
-                    {statusItems.length === 0 ? (
-                      <div className="flex min-h-[140px] items-center justify-center rounded-2xl border border-dashed border-stone/50 bg-white/40 p-4 text-center text-xs text-charcoal-deep/40 font-medium">
-                        No orders in this stage
-                      </div>
-                    ) : (
-                      statusItems.map((order) => (
-                        <StaffOrderCard
-                          key={order.id}
-                          order={order}
-                          onAdvance={handleAdvance}
-                          busy={busyOrderId === order.id}
-                        />
-                      ))
-                    )}
-                  </div>
-                </section>
-              );
-            })}
+          /* Strict Vertical Sequence: TABLE 1 -> TABLE 2 -> TABLE 3 -> TABLE 4 */
+          <div className="flex flex-col gap-6 w-full">
+            {tableGroups.map((group) => (
+              <StaffTableGroup
+                key={group.tableId}
+                group={group}
+                onAcceptOrder={handleAcceptOrder}
+                onCompleteOrder={handleCompleteOrder}
+                busyOrderId={busyOrderId}
+              />
+            ))}
           </div>
         )}
       </div>

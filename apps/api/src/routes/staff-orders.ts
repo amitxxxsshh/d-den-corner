@@ -1,15 +1,19 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 
+import { execute } from "../db";
 import {
-  getActiveOrders,
+  getActiveStaffOrders,
   getOrderById,
   getOrderItems,
   getOrderStatusHistory,
   updateOrderStatus,
 } from "../db/orders";
 
-import { getTableSessionById } from "../db/sessions";
+import {
+  closeTableSession,
+  getTableSessionById,
+} from "../db/sessions";
 import { getTableById } from "../db/tables";
 import { getNextOrderStatus } from "../utils/order-status";
 
@@ -36,52 +40,15 @@ function getAuthenticatedStaffUserId(
 staffOrderRoutes.get(
   "/",
   async (c) => {
-    const orders =
-      await getActiveOrders(
+    const { orders, tables } =
+      await getActiveStaffOrders(
         c.env.DB,
-      );
-
-    const result =
-      await Promise.all(
-        orders.map(
-          async (order) => {
-            const tableSession =
-              await getTableSessionById(
-                c.env.DB,
-                order.table_session_id,
-              );
-
-            const table =
-              tableSession
-                ? await getTableById(
-                    c.env.DB,
-                    tableSession.table_id,
-                  )
-                : null;
-
-            const items =
-              await getOrderItems(
-                c.env.DB,
-                order.id,
-              );
-
-            return {
-              ...order,
-              table: table
-                ? {
-                    id: table.id,
-                    name: table.name,
-                  }
-                : null,
-              items,
-            };
-          },
-        ),
       );
 
     return c.json({
       ok: true,
-      orders: result,
+      orders,
+      tables,
     });
   },
 );
@@ -269,4 +236,82 @@ staffOrderRoutes.post(
   },
 );
 
-export default staffOrderRoutes;
+async function handleCompleteOrder(c: any) {
+  const staffUserId = getAuthenticatedStaffUserId(c);
+
+  if (!staffUserId) {
+    return c.json(
+      {
+        ok: false,
+        message: "Staff authentication is required.",
+      },
+      401,
+    );
+  }
+
+  const orderId = c.req.param("orderId");
+  const order = await getOrderById(c.env.DB, orderId);
+
+  if (!order) {
+    return c.json(
+      {
+        ok: false,
+        message: "Order not found.",
+      },
+      404,
+    );
+  }
+
+  const now = new Date().toISOString();
+
+  await execute(
+    c.env.DB,
+    `
+      UPDATE orders
+      SET
+        status = 'SERVED',
+        accepted_at = CASE WHEN accepted_at IS NULL THEN ? ELSE accepted_at END,
+        updated_at = ?
+      WHERE id = ?
+    `,
+    now,
+    now,
+    orderId,
+  );
+
+  await execute(
+    c.env.DB,
+    `
+      INSERT INTO order_status_history (
+        id,
+        order_id,
+        from_status,
+        to_status,
+        changed_by_user_id,
+        created_at
+      )
+      VALUES (?, ?, ?, 'SERVED', ?, ?)
+    `,
+    crypto.randomUUID(),
+    orderId,
+    order.status,
+    staffUserId,
+    now,
+  );
+
+  if (order.table_session_id) {
+    await closeTableSession(c.env.DB, order.table_session_id);
+  }
+
+  const updatedOrder = await getOrderById(c.env.DB, orderId);
+
+  return c.json({
+    ok: true,
+    order: updatedOrder,
+  });
+}
+
+staffOrderRoutes.post("/:orderId/complete", handleCompleteOrder);
+staffOrderRoutes.post("/:orderId/close", handleCompleteOrder);
+
+export default staffOrderRoutes;

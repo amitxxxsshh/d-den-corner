@@ -11,10 +11,7 @@ function formatPrice(priceMinor) {
 
 const NEXT_LABEL = {
   NEW: "Accept Order",
-  ACCEPTED: "Start Preparing",
-  PREPARING: "Mark Ready",
-  READY: "Mark Served",
-  SERVED: null,
+  ACCEPTED: null,
 };
 
 function getStatusStyle(status) {
@@ -22,13 +19,7 @@ function getStatusStyle(status) {
     case "NEW":
       return "bg-amber-warm/15 text-amber-gold border-amber-warm/40 font-bold";
     case "ACCEPTED":
-      return "bg-amber-warm/25 text-charcoal-deep border-amber-warm/50 font-bold";
-    case "PREPARING":
-      return "bg-charcoal-deep text-amber-light border-amber-warm/30 font-bold";
-    case "READY":
-      return "bg-forest/15 text-forest border-forest/40 font-extrabold";
-    case "SERVED":
-      return "bg-green-muted/20 text-forest border-green-muted/30 font-semibold";
+      return "bg-forest/15 text-forest border-forest/40 font-bold";
     default:
       return "bg-stone/30 text-charcoal-deep/70 border-stone/50";
   }

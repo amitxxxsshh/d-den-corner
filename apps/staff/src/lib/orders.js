@@ -28,3 +28,16 @@ export async function advanceOrderStatus(
     },
   );
 }
+
+export async function completeOrder(
+  orderId,
+) {
+  return apiRequest(
+    `/api/staff/orders/${encodeURIComponent(
+      orderId,
+    )}/complete`,
+    {
+      method: "POST",
+    },
+  );
+}

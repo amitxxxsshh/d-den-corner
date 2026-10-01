@@ -153,6 +153,54 @@ export async function closeTableSession(
     tableSessionId,
   );
 
+  // Complete any active orders for this table session so they transition to SERVED in Order History
+  const activeOrders = await queryMany<{ id: string; status: string }>(
+    db,
+    `
+      SELECT id, status
+      FROM orders
+      WHERE table_session_id = ?
+        AND status IN ('NEW', 'ACCEPTED')
+    `,
+    tableSessionId,
+  );
+
+  for (const ord of activeOrders) {
+    await execute(
+      db,
+      `
+        UPDATE orders
+        SET
+          status = 'SERVED',
+          accepted_at = CASE WHEN accepted_at IS NULL THEN ? ELSE accepted_at END,
+          updated_at = ?
+        WHERE id = ?
+      `,
+      closedAt,
+      closedAt,
+      ord.id,
+    );
+
+    await execute(
+      db,
+      `
+        INSERT INTO order_status_history (
+          id,
+          order_id,
+          from_status,
+          to_status,
+          changed_by_user_id,
+          created_at
+        )
+        VALUES (?, ?, ?, 'SERVED', NULL, ?)
+      `,
+      crypto.randomUUID(),
+      ord.id,
+      ord.status,
+      closedAt,
+    );
+  }
+
   return getTableSessionById(
     db,
     tableSessionId,
