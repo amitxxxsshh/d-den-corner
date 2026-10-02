@@ -669,6 +669,108 @@ async function run() {
     console.log("✓ Step U: Staff cannot replace/rotate existing Table 4 ordering link");
   }
 
+  // -------------------------------------------------
+  // TABLE DELETION & SAFE CLEANUP (Table 4)
+  // -------------------------------------------------
+  console.log("\n-------------------------------------------------");
+  console.log("TABLE DELETION & SAFE CLEANUP");
+  console.log("-------------------------------------------------");
+
+  // Step CORS: Browser preflight OPTIONS request for DELETE /api/staff/tables/:tableId
+  {
+    const res = await worker.fetch(
+      new Request("http://localhost:8787/api/staff/tables/tbl-4", {
+        method: "OPTIONS",
+        headers: {
+          Origin: "http://localhost:3001",
+          "Access-Control-Request-Method": "DELETE",
+          "Access-Control-Request-Headers": "Content-Type",
+        },
+      }),
+      env,
+      {} as any
+    );
+    assert.strictEqual(res.status, 204, "CORS preflight returns 204 No Content");
+    assert.strictEqual(res.headers.get("access-control-allow-origin"), "http://localhost:3001");
+    const allowedMethods = res.headers.get("access-control-allow-methods") || "";
+    assert.ok(allowedMethods.includes("DELETE"), "CORS allows DELETE method");
+    console.log("✓ Step CORS: OPTIONS preflight allows DELETE from http://localhost:3001");
+  }
+
+  // Step V: Delete table requires staff authentication
+  {
+    const res = await worker.fetch(
+      new Request("http://localhost:3001/api/staff/tables/tbl-4", {
+        method: "DELETE",
+      }),
+      env,
+      {} as any
+    );
+    assert.strictEqual(res.status, 401, "Delete table requires staff authentication (401)");
+    console.log("✓ Step V: Unauthenticated delete request is rejected with 401");
+  }
+
+  // Step W: Delete non-existent table returns 404
+  {
+    const res = await worker.fetch(
+      new Request("http://localhost:3001/api/staff/tables/non-existent-table", {
+        method: "DELETE",
+        headers: { Cookie: staffCookie },
+      }),
+      env,
+      {} as any
+    );
+    assert.strictEqual(res.status, 404, "Non-existent table returns 404");
+    console.log("✓ Step W: Deleting non-existent table returns 404 Not Found");
+  }
+
+  // Step X: Staff deletes Table 4 safely
+  {
+    const res = await worker.fetch(
+      new Request("http://localhost:3001/api/staff/tables/tbl-4", {
+        method: "DELETE",
+        headers: { Cookie: staffCookie },
+      }),
+      env,
+      {} as any
+    );
+    assert.strictEqual(res.status, 200, "Staff deletes Table 4 successfully (200)");
+    const data = await res.json() as any;
+    assert.strictEqual(data.ok, true, "Response has ok: true");
+    assert.strictEqual(data.tableId, "tbl-4", "Response identifies deleted table");
+    console.log("✓ Step X: Staff successfully deletes Table 4 via Staff API");
+  }
+
+  // Step Y: Table 4 and its ordering tokens are removed; token is no longer usable
+  {
+    const tableRow = sqlite.prepare("SELECT * FROM tables WHERE id = 'tbl-4'").get();
+    assert.strictEqual(tableRow, undefined, "Table 4 is completely removed from tables table");
+
+    const qrRows = sqlite.prepare("SELECT * FROM qr_tokens WHERE table_id = 'tbl-4'").all();
+    assert.strictEqual(qrRows.length, 0, "Table 4 qr_tokens are completely removed");
+
+    // Customer scan with deleted table's token fails
+    const joinRes = await worker.fetch(
+      new Request("http://localhost:3000/api/qr/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: table4Token }),
+      }),
+      env,
+      {} as any
+    );
+    assert.strictEqual(joinRes.status, 401, "Token for deleted table is no longer usable (401)");
+    console.log("✓ Step Y: Table 4 removed from DB and its permanent ordering link is unusable");
+  }
+
+  // Step Z: Unrelated tables (tbl-1, dev-table-3) remain intact and functional
+  {
+    const remainingTables = sqlite.prepare("SELECT id FROM tables ORDER BY id").all() as Array<{ id: string }>;
+    const tableIds = remainingTables.map((t) => t.id);
+    assert.deepStrictEqual(tableIds, ["dev-table-3", "tbl-1"], "Remaining tables are untouched");
+    console.log("✓ Step Z: Unrelated tables remain intact and operational");
+  }
+
   console.log("\n=================================================");
   console.log("ALL TABLE ORDERING LINK ACCESS-CONTROL TESTS PASSED!");
   console.log("=================================================\n");

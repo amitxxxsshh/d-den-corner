@@ -51,6 +51,7 @@ app.use("/api/*", async (c, next) => {
       "GET",
       "POST",
       "PATCH",
+      "DELETE",
       "OPTIONS",
     ],
 

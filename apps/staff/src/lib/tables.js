@@ -53,9 +53,19 @@ export async function createTable(idOrObj, name, locationId) {
   });
 }
 
+export async function deleteTable(tableId) {
+  return apiRequest(
+    `/api/staff/tables/${encodeURIComponent(tableId)}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
 createTable.createTable = createTable;
 createTable.getStaffTables = getStaffTables;
 createTable.openTable = openTable;
 createTable.closeTable = closeTable;
+createTable.deleteTable = deleteTable;
 
 export default createTable;

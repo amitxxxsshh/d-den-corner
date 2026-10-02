@@ -11,6 +11,7 @@ import {
   openTable,
   closeTable,
   createTable,
+  deleteTable,
 } from "../../lib/tables";
 
 export default function TablesPage() {
@@ -95,6 +96,25 @@ export default function TablesPage() {
     }
   }
 
+  async function handleDeleteTable(tableId) {
+    try {
+      setBusyTableId(tableId);
+      setError("");
+
+      await deleteTable(tableId);
+
+      setTables((prev) => prev.filter((t) => t.id !== tableId));
+      await loadTables();
+    } catch (err) {
+      setError(
+        err?.message ||
+          "Unable to delete table.",
+      );
+    } finally {
+      setBusyTableId(null);
+    }
+  }
+
   const openCount = tables.filter((t) => Boolean(t.activeSession)).length;
 
   return (
@@ -146,6 +166,7 @@ export default function TablesPage() {
                 busy={busyTableId === table.id}
                 onOpen={handleOpen}
                 onClose={handleClose}
+                onDelete={handleDeleteTable}
               />
             ))}
             <AddTableCard

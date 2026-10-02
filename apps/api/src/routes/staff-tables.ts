@@ -9,6 +9,7 @@ import {
   getTablesByLocation,
   getTableById,
   createTable,
+  deleteTable,
 } from "../db/tables";
 
 import {
@@ -485,6 +486,52 @@ staffTableRoutes.post(
       },
       201,
     );
+  },
+);
+
+/*
+ * DELETE TABLE AND DEPENDENT RESOURCES
+ */
+staffTableRoutes.delete(
+  "/:tableId",
+  async (c) => {
+    const authError =
+      requireStaff(c);
+
+    if (authError) {
+      return authError;
+    }
+
+    const tableId =
+      c.req.param("tableId");
+
+    const table =
+      await getTableById(
+        c.env.DB,
+        tableId,
+      );
+
+    if (!table) {
+      return c.json(
+        {
+          ok: false,
+          message:
+            "Table not found.",
+        },
+        404,
+      );
+    }
+
+    await deleteTable(
+      c.env.DB,
+      tableId,
+    );
+
+    return c.json({
+      ok: true,
+      message: `Table ${table.name} deleted successfully.`,
+      tableId,
+    });
   },
 );
 
