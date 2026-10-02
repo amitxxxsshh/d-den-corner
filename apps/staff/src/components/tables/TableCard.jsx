@@ -1,14 +1,30 @@
 "use client";
 
-export default function TableCard({
+import { useState } from "react";
+
+export function TableCard({
   table,
   busy,
   onOpen,
   onClose,
 }) {
+  const [copied, setCopied] = useState(false);
+
   const isOpen = Boolean(table.activeSession);
   const hasQR = Boolean(table.qr);
   const qrIsActive = Boolean(table.qr?.active);
+  const orderingUrl = table.orderingUrl || table.qr?.url || "";
+
+  async function handleCopy() {
+    if (!orderingUrl) return;
+    try {
+      await navigator.clipboard.writeText(orderingUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy ordering link:", err);
+    }
+  }
 
   return (
     <article className="overflow-hidden rounded-3xl border border-stone/50 bg-white p-5 sm:p-6 card-warm-shadow transition-all duration-200 hover:border-stone hover:shadow-md flex flex-col justify-between">
@@ -120,7 +136,28 @@ export default function TableCard({
                 : "No Ordering Link Configured"}
           </button>
         )}
+
+        {/* Existing Permanent Ordering Link + Copy */}
+        {orderingUrl ? (
+          <div className="flex items-center justify-between gap-2 px-1 pt-1">
+            <span
+              className="truncate text-[11px] font-mono text-charcoal-deep/60 select-all"
+              title={orderingUrl}
+            >
+              {orderingUrl}
+            </span>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="shrink-0 text-xs font-bold text-charcoal-deep hover:text-forest transition"
+            >
+              {copied ? "Copied!" : "Copy"}
+            </button>
+          </div>
+        ) : null}
       </div>
     </article>
   );
 }
+
+export default TableCard;

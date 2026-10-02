@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 
 import TableCard from "../../components/tables/TableCard";
+import AddTableCard from "../../components/tables/AddTableCard";
 import StaffNavbar from "../../components/StaffNavbar";
 
 import {
   getStaffTables,
   openTable,
   closeTable,
+  createTable,
 } from "../../lib/tables";
 
 export default function TablesPage() {
@@ -79,6 +81,20 @@ export default function TablesPage() {
     }
   }
 
+  async function handleCreateTable({ id, name }) {
+    try {
+      setError("");
+      await createTable({ id, name });
+      await loadTables();
+    } catch (err) {
+      setError(
+        err?.message ||
+          "Unable to create table.",
+      );
+      throw err;
+    }
+  }
+
   const openCount = tables.filter((t) => Boolean(t.activeSession)).length;
 
   return (
@@ -121,16 +137,6 @@ export default function TablesPage() {
           <div className="flex min-h-[300px] items-center justify-center rounded-3xl border border-stone/40 bg-white p-8 text-center text-xs text-charcoal-deep/60">
             Loading table states...
           </div>
-        ) : tables.length === 0 ? (
-          <div className="rounded-3xl border border-stone/50 bg-white p-12 text-center shadow-sm">
-            <h2 className="text-base font-bold font-serif text-charcoal-deep">
-              No Tables Configured
-            </h2>
-
-            <p className="mt-1 text-xs text-charcoal-deep/60">
-              No tables have been configured yet.
-            </p>
-          </div>
         ) : (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {tables.map((table) => (
@@ -142,6 +148,10 @@ export default function TablesPage() {
                 onClose={handleClose}
               />
             ))}
+            <AddTableCard
+              onCreate={handleCreateTable}
+              onCreated={loadTables}
+            />
           </div>
         )}
       </div>

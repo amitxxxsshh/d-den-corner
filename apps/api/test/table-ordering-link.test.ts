@@ -55,6 +55,7 @@ function initTestDb() {
     "0003__staff_auth.sql",
     "0004_staff_passwords.sql",
     "0005_order_accepted_at.sql",
+    "0006_qr_tokens_raw_token.sql",
   ];
 
   for (const name of migrationNames) {
@@ -153,7 +154,7 @@ async function run() {
     console.log("✓ Test 3: Terminal/Admin tooling generates ordering link via backend capability");
   }
 
-  // 4. Staff fetches tables: sees QR is assigned, but does NOT see raw token or URL
+  // 4. Staff fetches tables: sees QR is assigned, and sees permanent ordering URL for viewing and copying
   {
     const res = await worker.fetch(
       new Request("http://localhost:3001/api/staff/tables", {
@@ -171,9 +172,10 @@ async function run() {
     assert.ok(tbl, "Table found in response");
     assert.ok(tbl.qr, "QR status is assigned");
     assert.strictEqual(tbl.qr.active, false, "QR is inactive because table is closed");
-    assert.strictEqual((tbl as any).qr.token, undefined, "Staff API does NOT expose raw token");
-    assert.strictEqual((tbl as any).qr.url, undefined, "Staff API does NOT expose ordering url");
-    console.log("✓ Test 4: Staff tables list shows link status without exposing raw token/URL");
+    const expectedUrl = `http://localhost:3000/menu?token=${encodeURIComponent(generatedToken)}`;
+    assert.strictEqual(tbl.qr.url, expectedUrl, "Staff API exposes ordering URL for viewing and copying");
+    assert.strictEqual(tbl.orderingUrl, expectedUrl, "Staff API exposes orderingUrl for table card");
+    console.log("✓ Test 4: Staff tables list exposes permanent ordering URL for viewing and copying");
   }
 
   // 5. Customer scanning inactive QR fails to join (401)
@@ -456,6 +458,216 @@ async function run() {
   assert.strictEqual(newTokenBody.ok, true);
   assert.ok(newTokenBody.token, "New session token issued for rotated link");
   console.log("✓ Step L: Old token is no longer valid and new rotated token is valid when table is open");
+
+  // ============================================================
+  // TABLE CREATION & LIFECYCLE TESTS (Add Table Workflow)
+  // ============================================================
+  console.log("\n-------------------------------------------------");
+  console.log("TABLE CREATION & ORDERING LINK LIFECYCLE (Table 4)");
+  console.log("-------------------------------------------------");
+
+  // Step M: Validation - Missing fields return 400
+  {
+    const res = await worker.fetch(
+      new Request("http://localhost:3001/api/staff/tables", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: staffCookie,
+        },
+        body: JSON.stringify({ id: "", name: "" }),
+      }),
+      env,
+      {} as any
+    );
+    assert.strictEqual(res.status, 400, "Empty ID/name returns 400 Bad Request");
+    console.log("✓ Step M: Table creation rejects missing fields with 400");
+  }
+
+  // Step N: Staff creates Table 4 with initial permanent ordering token
+  let table4Token: string;
+  let table4Url: string;
+  {
+    const res = await worker.fetch(
+      new Request("http://localhost:3001/api/staff/tables", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: staffCookie,
+        },
+        body: JSON.stringify({ id: "tbl-4", name: "Table 4" }),
+      }),
+      env,
+      {} as any
+    );
+
+    assert.strictEqual(res.status, 201, "POST /api/staff/tables returns 201 Created");
+    const body: any = await res.json();
+    assert.strictEqual(body.ok, true);
+    assert.strictEqual(body.table.id, "tbl-4");
+    assert.strictEqual(body.table.name, "Table 4");
+    assert.strictEqual(body.table.activeSession, null, "New table starts with no active session");
+    assert.ok(body.table.qr, "Initial QR token is returned");
+    assert.strictEqual(body.table.qr.active, false, "Initial QR token is inactive because table is closed");
+    assert.ok(body.table.qr.url, "Initial permanent ordering URL is present");
+    table4Url = body.table.qr.url;
+    assert.strictEqual(body.table.orderingUrl, table4Url);
+
+    // Extract token from URL
+    const urlObj = new URL(table4Url);
+    table4Token = urlObj.searchParams.get("token")!;
+    assert.ok(table4Token, "Token extracted from permanent URL");
+
+    // Verify DB has exactly ONE token for tbl-4
+    const tokensInDb = sqlite.prepare("SELECT * FROM qr_tokens WHERE table_id = 'tbl-4'").all() as any[];
+    assert.strictEqual(tokensInDb.length, 1, "Exactly one initial permanent token created in DB");
+    assert.strictEqual(tokensInDb[0].active, 0, "Token in DB starts inactive (active=0)");
+    assert.strictEqual(tokensInDb[0].raw_token, table4Token, "raw_token matches the URL token");
+    console.log("✓ Step N: Staff creates Table 4 with exactly one initial permanent ordering token");
+  }
+
+  // Step O: Duplicate table ID returns 409 Conflict
+  {
+    const res = await worker.fetch(
+      new Request("http://localhost:3001/api/staff/tables", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: staffCookie,
+        },
+        body: JSON.stringify({ id: "tbl-4", name: "Table 4 Duplicate" }),
+      }),
+      env,
+      {} as any
+    );
+    assert.strictEqual(res.status, 409, "Duplicate table ID returns 409 Conflict");
+    console.log("✓ Step O: Duplicate table creation rejected with 409 Conflict");
+  }
+
+  // Step P: Customer scanning inactive Table 4 link is rejected (401)
+  {
+    const res = await worker.fetch(
+      new Request("http://localhost:3000/api/qr/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: table4Token }),
+      }),
+      env,
+      {} as any
+    );
+    assert.strictEqual(res.status, 401, "Customer cannot join while Table 4 is closed");
+    console.log("✓ Step P: Customer scanning Table 4 link before opening is rejected (401)");
+  }
+
+  // Step Q: Staff opens Table 4 -> Activates the SAME permanent token
+  {
+    const res = await worker.fetch(
+      new Request("http://localhost:3001/api/staff/tables/tbl-4/open", {
+        method: "POST",
+        headers: { Cookie: staffCookie },
+      }),
+      env,
+      {} as any
+    );
+    assert.strictEqual(res.status, 200, "Staff opens Table 4 successfully");
+    const body: any = await res.json();
+    assert.strictEqual(body.ok, true);
+    assert.ok(body.session, "Table session created");
+    assert.strictEqual(body.qr.active, true, "QR token activated");
+
+    // Verify DB still has exactly ONE token
+    const tokensInDb = sqlite.prepare("SELECT * FROM qr_tokens WHERE table_id = 'tbl-4'").all() as any[];
+    assert.strictEqual(tokensInDb.length, 1, "Opening table MUST NOT generate a new token");
+    assert.strictEqual(tokensInDb[0].active, 1, "Token active is now 1");
+    console.log("✓ Step Q: Staff opens Table 4, activating SAME token without generating new token");
+  }
+
+  // Step R: Customer joins Table 4 successfully with the permanent URL token
+  {
+    const res = await worker.fetch(
+      new Request("http://localhost:3000/api/qr/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: table4Token }),
+      }),
+      env,
+      {} as any
+    );
+    assert.strictEqual(res.status, 200, "Customer joins Table 4 successfully");
+    const body: any = await res.json();
+    assert.strictEqual(body.ok, true);
+    assert.strictEqual(body.session.tableId, "tbl-4");
+    assert.strictEqual(body.session.tableName, "Table 4");
+    console.log("✓ Step R: Customer joins Table 4 successfully while table is open");
+  }
+
+  // Step S: Staff closes Table 4 -> Deactivates permanent token
+  {
+    const res = await worker.fetch(
+      new Request("http://localhost:3001/api/staff/tables/tbl-4/close", {
+        method: "POST",
+        headers: { Cookie: staffCookie },
+      }),
+      env,
+      {} as any
+    );
+    assert.strictEqual(res.status, 200, "Staff closes Table 4");
+    const body: any = await res.json();
+    assert.strictEqual(body.ok, true);
+    assert.strictEqual(body.qr.active, false, "QR token deactivated");
+
+    // Customer join rejected
+    const joinRes = await worker.fetch(
+      new Request("http://localhost:3000/api/qr/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: table4Token }),
+      }),
+      env,
+      {} as any
+    );
+    assert.strictEqual(joinRes.status, 401, "Customer rejected after Table 4 closed");
+    console.log("✓ Step S: Staff closes Table 4; token deactivated; customer rejected");
+  }
+
+  // Step T: Staff reopens Table 4 -> SAME token works again
+  {
+    const openRes = await worker.fetch(
+      new Request("http://localhost:3001/api/staff/tables/tbl-4/open", {
+        method: "POST",
+        headers: { Cookie: staffCookie },
+      }),
+      env,
+      {} as any
+    );
+    assert.strictEqual(openRes.status, 200);
+
+    const joinRes = await worker.fetch(
+      new Request("http://localhost:3000/api/qr/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: table4Token }),
+      }),
+      env,
+      {} as any
+    );
+    assert.strictEqual(joinRes.status, 200, "Customer joins reopened Table 4 with SAME permanent token");
+    console.log("✓ Step T: Reopening Table 4 reactivates SAME permanent token");
+  }
+
+  // Step U: Staff cannot replace/rotate Table 4 ordering link (404)
+  {
+    const res = await worker.fetch(
+      new Request("http://localhost:3001/api/staff/tables/tbl-4/qr", {
+        method: "POST",
+        headers: { Cookie: staffCookie },
+      }),
+      env,
+      {} as any
+    );
+    assert.strictEqual(res.status, 404, "Staff cannot call link replacement endpoint (404 Not Found)");
+    console.log("✓ Step U: Staff cannot replace/rotate existing Table 4 ordering link");
+  }
 
   console.log("\n=================================================");
   console.log("ALL TABLE ORDERING LINK ACCESS-CONTROL TESTS PASSED!");

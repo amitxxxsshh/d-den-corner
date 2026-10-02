@@ -8,6 +8,7 @@ import {
 import {
   getTablesByLocation,
   getTableById,
+  createTable,
 } from "../db/tables";
 
 import {
@@ -17,6 +18,7 @@ import {
 } from "../db/sessions";
 
 import {
+  createQRToken,
   getCurrentQRTokenForTable,
   setQRTokenActive,
 } from "../db/qr";
@@ -70,6 +72,10 @@ staffTableRoutes.get(
         c.env.DB,
       );
 
+    const customerOrigin =
+      c.env.CUSTOMER_ORIGIN ||
+      "http://localhost:3000";
+
     const result =
       await Promise.all(
         locations.map(
@@ -99,6 +105,10 @@ staffTableRoutes.get(
                         ),
                       ]);
 
+                    const orderingUrl = qr?.raw_token
+                      ? `${customerOrigin.replace(/\/$/, "")}/menu?token=${encodeURIComponent(qr.raw_token)}`
+                      : null;
+
                     return {
                       ...table,
                       activeSession:
@@ -111,8 +121,10 @@ staffTableRoutes.get(
                               1,
                             createdAt:
                               qr.created_at,
+                            url: orderingUrl,
                           }
                         : null,
+                      orderingUrl,
                     };
                   },
                 ),
@@ -213,6 +225,14 @@ staffTableRoutes.post(
         true,
       );
 
+    const customerOrigin =
+      c.env.CUSTOMER_ORIGIN ||
+      "http://localhost:3000";
+
+    const orderingUrl = activatedQR?.raw_token
+      ? `${customerOrigin.replace(/\/$/, "")}/menu?token=${encodeURIComponent(activatedQR.raw_token)}`
+      : null;
+
     return c.json({
       ok: true,
       session,
@@ -221,8 +241,10 @@ staffTableRoutes.post(
             id: activatedQR.id,
             active:
               activatedQR.active === 1,
+            url: orderingUrl,
           }
         : null,
+      orderingUrl,
     });
   },
 );
@@ -297,6 +319,14 @@ staffTableRoutes.post(
         );
     }
 
+    const customerOrigin =
+      c.env.CUSTOMER_ORIGIN ||
+      "http://localhost:3000";
+
+    const orderingUrl = deactivatedQR?.raw_token
+      ? `${customerOrigin.replace(/\/$/, "")}/menu?token=${encodeURIComponent(deactivatedQR.raw_token)}`
+      : null;
+
     return c.json({
       ok: true,
       session: closed,
@@ -305,9 +335,156 @@ staffTableRoutes.post(
             id: deactivatedQR.id,
             active:
               deactivatedQR.active === 1,
+            url: orderingUrl,
           }
         : null,
+      orderingUrl,
     });
+  },
+);
+
+/*
+ * CREATE NEW TABLE WITH INITIAL PERMANENT ORDERING TOKEN
+ */
+staffTableRoutes.post(
+  "/",
+  async (c) => {
+    const authError =
+      requireStaff(c);
+
+    if (authError) {
+      return authError;
+    }
+
+    let body: any;
+
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json(
+        {
+          ok: false,
+          message:
+            "Invalid JSON request body.",
+        },
+        400,
+      );
+    }
+
+    const id =
+      typeof body?.id === "string"
+        ? body.id.trim()
+        : "";
+
+    const name =
+      typeof body?.name === "string"
+        ? body.name.trim()
+        : "";
+
+    if (!id || !name) {
+      return c.json(
+        {
+          ok: false,
+          message:
+            "Table ID and Table Name are required.",
+        },
+        400,
+      );
+    }
+
+    // Check if table ID already exists
+    const existing =
+      await getTableById(
+        c.env.DB,
+        id,
+      );
+
+    if (existing) {
+      return c.json(
+        {
+          ok: false,
+          message: `Table with ID '${id}' already exists.`,
+        },
+        409,
+      );
+    }
+
+    let locationId =
+      typeof body?.locationId ===
+      "string"
+        ? body.locationId.trim()
+        : "";
+
+    if (!locationId) {
+      const locations =
+        await getActiveLocations(
+          c.env.DB,
+        );
+
+      if (
+        !locations ||
+        locations.length === 0
+      ) {
+        return c.json(
+          {
+            ok: false,
+            message:
+              "No active dining location found.",
+          },
+          400,
+        );
+      }
+
+      locationId = locations[0].id;
+    }
+
+    // 1. Create table
+    const table =
+      await createTable(
+        c.env.DB,
+        {
+          id,
+          locationId,
+          name,
+        },
+      );
+
+    // 2. Generate initial permanent ordering token
+    const qrResult =
+      await createQRToken(
+        c.env.DB,
+        id,
+      );
+
+    const customerOrigin =
+      c.env.CUSTOMER_ORIGIN ||
+      "http://localhost:3000";
+
+    const orderingUrl = `${customerOrigin.replace(
+      /\/$/,
+      "",
+    )}/menu?token=${encodeURIComponent(
+      qrResult.token,
+    )}`;
+
+    return c.json(
+      {
+        ok: true,
+        table: {
+          ...table,
+          activeSession: null,
+          qr: {
+            id: qrResult.row.id,
+            active: false,
+            createdAt:
+              qrResult.row.created_at,
+            url: orderingUrl,
+          },
+          orderingUrl,
+        },
+      },
+      201,
+    );
   },
 );
 

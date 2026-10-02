@@ -202,8 +202,8 @@ async function generateOrderingLink(tableQuery: string, isRemote: boolean, custo
     SET active = 0, revoked_at = '${now}'
     WHERE table_id = '${tableId}' AND revoked_at IS NULL;
 
-    INSERT INTO qr_tokens (id, table_id, token_hash, active, created_at, revoked_at)
-    VALUES ('${tokenId}', '${tableId}', '${tokenHash}', ${tokenActive}, '${now}', NULL);
+    INSERT INTO qr_tokens (id, table_id, token_hash, raw_token, active, created_at, revoked_at)
+    VALUES ('${tokenId}', '${tableId}', '${tokenHash}', '${rawToken}', ${tokenActive}, '${now}', NULL);
   `;
 
   runD1Query(updateSql, isRemote);

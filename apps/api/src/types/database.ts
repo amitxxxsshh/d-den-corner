@@ -41,6 +41,7 @@ export interface QRTokenRow {
   id: string;
   table_id: string;
   token_hash: string;
+  raw_token?: string | null;
   active: number;
   created_at: string;
   revoked_at: string | null;

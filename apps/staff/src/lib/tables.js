@@ -40,3 +40,22 @@ export async function closeTable(tableId) {
     },
   );
 }
+
+export async function createTable(idOrObj, name, locationId) {
+  const payload =
+    typeof idOrObj === "object" && idOrObj !== null
+      ? idOrObj
+      : { id: idOrObj, name, locationId };
+
+  return apiRequest("/api/staff/tables", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+createTable.createTable = createTable;
+createTable.getStaffTables = getStaffTables;
+createTable.openTable = openTable;
+createTable.closeTable = closeTable;
+
+export default createTable;

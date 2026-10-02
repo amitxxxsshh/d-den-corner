@@ -37,3 +37,5 @@ export async function apiRequest(
 
   return data;
 }
+
+export default apiRequest;

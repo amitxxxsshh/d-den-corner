@@ -26,6 +26,7 @@ export async function getQRTokenByHash(
         id,
         table_id,
         token_hash,
+        raw_token,
         active,
         created_at,
         revoked_at
@@ -48,6 +49,7 @@ export async function getActiveQRTokenForTable(
         id,
         table_id,
         token_hash,
+        raw_token,
         active,
         created_at,
         revoked_at
@@ -81,6 +83,7 @@ export async function getCurrentQRTokenForTable(
         id,
         table_id,
         token_hash,
+        raw_token,
         active,
         created_at,
         revoked_at
@@ -105,6 +108,7 @@ export async function getQRTokensForTable(
         id,
         table_id,
         token_hash,
+        raw_token,
         active,
         created_at,
         revoked_at
@@ -146,6 +150,7 @@ export async function setQRTokenActive(
         id,
         table_id,
         token_hash,
+        raw_token,
         active,
         created_at,
         revoked_at
@@ -184,6 +189,7 @@ export async function revokeQRToken(
         id,
         table_id,
         token_hash,
+        raw_token,
         active,
         created_at,
         revoked_at
@@ -238,11 +244,13 @@ export async function createQRToken(
         id,
         table_id,
         token_hash,
+        raw_token,
         active,
         created_at,
         revoked_at
       )
       VALUES (
+        ?,
         ?,
         ?,
         ?,
@@ -254,6 +262,7 @@ export async function createQRToken(
     id,
     tableId,
     tokenHash,
+    token,
     now,
   );
 
@@ -264,6 +273,7 @@ export async function createQRToken(
         id,
         table_id,
         token_hash,
+        raw_token,
         active,
         created_at,
         revoked_at
