@@ -9,17 +9,13 @@ import {
   getStaffTables,
   openTable,
   closeTable,
-  generateTableLink,
 } from "../../lib/tables";
 
 export default function TablesPage() {
   const [tables, setTables] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [busyTableId, setBusyTableId] =
-    useState(null);
-  const [generatedQR, setGeneratedQR] =
-    useState({});
+  const [busyTableId, setBusyTableId] = useState(null);
 
   async function loadTables() {
     try {
@@ -83,32 +79,6 @@ export default function TablesPage() {
     }
   }
 
-  async function handleGenerateLink(tableId) {
-    try {
-      setBusyTableId(tableId);
-      setError("");
-
-      const data =
-        await generateTableLink(tableId);
-
-      if (data?.qr) {
-        setGeneratedQR((current) => ({
-          ...current,
-          [tableId]: data.qr,
-        }));
-      }
-
-      await loadTables();
-    } catch (err) {
-      setError(
-        err?.message ||
-          "Unable to create ordering link.",
-      );
-    } finally {
-      setBusyTableId(null);
-    }
-  }
-
   const openCount = tables.filter((t) => Boolean(t.activeSession)).length;
 
   return (
@@ -134,7 +104,7 @@ export default function TablesPage() {
             </div>
 
             <p className="mt-0.5 text-xs text-charcoal-deep/65">
-              Open/close active table dining sessions and generate scannable table QR links.
+              Open/close active table dining sessions.
             </p>
           </div>
         </div>
@@ -158,7 +128,7 @@ export default function TablesPage() {
             </h2>
 
             <p className="mt-1 text-xs text-charcoal-deep/60">
-              Create dining tables in the database before managing customer ordering links.
+              No tables have been configured yet.
             </p>
           </div>
         ) : (
@@ -167,11 +137,9 @@ export default function TablesPage() {
               <TableCard
                 key={table.id}
                 table={table}
-                generatedQR={generatedQR[table.id] || null}
                 busy={busyTableId === table.id}
                 onOpen={handleOpen}
                 onClose={handleClose}
-                onGenerateQR={handleGenerateLink}
               />
             ))}
           </div>

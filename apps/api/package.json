@@ -2,12 +2,14 @@
   "name": "@d-den-corner/api",
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --remote",
+    "dev": "wrangler dev",
     "dev:local": "wrangler dev",
+    "dev:remote": "wrangler dev --remote",
     "deploy": "wrangler deploy --minify",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
-    "test": "tsx test/dashboard.test.ts && tsx test/active-orders.test.ts",
-    "typecheck": "tsc --noEmit"
+    "test": "tsx test/dashboard.test.ts && tsx test/active-orders.test.ts && tsx test/table-ordering-link.test.ts",
+    "typecheck": "tsc --noEmit",
+    "table:link": "tsx scripts/manage-ordering-link.ts"
   },
   "dependencies": {
     "hono": "^4.13.9"

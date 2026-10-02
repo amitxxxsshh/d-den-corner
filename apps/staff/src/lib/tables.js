@@ -40,21 +40,3 @@ export async function closeTable(tableId) {
     },
   );
 }
-
-export async function generateTableLink(tableId) {
-  return apiRequest(
-    `/api/staff/tables/${encodeURIComponent(tableId)}/qr`,
-    {
-      method: "POST",
-    },
-  );
-}
-
-export async function revokeTableLink(tableId, qrId) {
-  return apiRequest(
-    `/api/staff/tables/${encodeURIComponent(tableId)}/qr/${encodeURIComponent(qrId)}/revoke`,
-    {
-      method: "POST",
-    },
-  );
-}

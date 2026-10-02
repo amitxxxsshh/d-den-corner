@@ -17,10 +17,8 @@ import {
 } from "../db/sessions";
 
 import {
-  createQRToken,
   getCurrentQRTokenForTable,
   setQRTokenActive,
-  revokeQRToken,
 } from "../db/qr";
 
 import type { Bindings } from "../types/env";
@@ -309,139 +307,6 @@ staffTableRoutes.post(
               deactivatedQR.active === 1,
           }
         : null,
-    });
-  },
-);
-
-staffTableRoutes.post(
-  "/:tableId/qr",
-  async (c) => {
-    const authError =
-      requireStaff(c);
-
-    if (authError) {
-      return authError;
-    }
-
-    const tableId =
-      c.req.param("tableId");
-
-    const table =
-      await getTableById(
-        c.env.DB,
-        tableId,
-      );
-
-    if (
-      !table ||
-      table.active !== 1
-    ) {
-      return c.json(
-        {
-          ok: false,
-          message:
-            "Table not found or inactive.",
-        },
-        404,
-      );
-    }
-
-    const result =
-      await createQRToken(
-        c.env.DB,
-        tableId,
-      );
-
-    const customerOrigin =
-      c.env.CUSTOMER_ORIGIN ||
-      "http://localhost:3000";
-
-    const url =
-      `${customerOrigin}/menu?token=${encodeURIComponent(
-        result.token,
-      )}`;
-
-    return c.json(
-      {
-        ok: true,
-        qr: {
-          id: result.row.id,
-          tableId,
-          token: result.token,
-          url,
-          active:
-            result.row.active === 1,
-          createdAt:
-            result.row.created_at,
-        },
-      },
-      201,
-    );
-  },
-);
-
-staffTableRoutes.post(
-  "/:tableId/qr/:qrId/revoke",
-  async (c) => {
-    const authError =
-      requireStaff(c);
-
-    if (authError) {
-      return authError;
-    }
-
-    const tableId =
-      c.req.param("tableId");
-
-    const qrId =
-      c.req.param("qrId");
-
-    const table =
-      await getTableById(
-        c.env.DB,
-        tableId,
-      );
-
-    if (!table) {
-      return c.json(
-        {
-          ok: false,
-          message:
-            "Table not found.",
-        },
-        404,
-      );
-    }
-
-    const current =
-      await getCurrentQRTokenForTable(
-        c.env.DB,
-        tableId,
-      );
-
-    if (
-      !current ||
-      current.id !== qrId
-    ) {
-      return c.json(
-        {
-          ok: false,
-          message:
-            "Assigned QR code not found.",
-        },
-        404,
-      );
-    }
-
-    const revoked =
-      await revokeQRToken(
-        c.env.DB,
-        qrId,
-      );
-
-    return c.json({
-      ok: true,
-      qr: revoked,
     });
   },
 );
