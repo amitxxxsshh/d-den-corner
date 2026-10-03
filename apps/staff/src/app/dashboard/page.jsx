@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { getCurrentStaff, logoutStaff } from "../../lib/auth";
@@ -11,6 +11,8 @@ import {
 } from "../../lib/dashboard";
 
 import StaffNavbar from "../../components/StaffNavbar";
+import HistoryPeriodSelector from "../../components/orders/HistoryPeriodSelector";
+import StaffOrderCard from "../../components/orders/StaffOrderCard";
 
 function formatPrice(minor) {
   return new Intl.NumberFormat("en-IN", {
@@ -29,6 +31,14 @@ function formatDateTime(isoString) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function getBusinessTodayDate(timeZone = "Asia/Kolkata") {
+  try {
+    return new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
 }
 
 const STATUS_CONFIG = {
@@ -78,6 +88,15 @@ export default function StaffDashboardPage() {
   });
   const [selectedStatus, setSelectedStatus] = useState("");
 
+  // Mode & Period State
+  const [historyMode, setHistoryMode] = useState("day"); // "day" | "month"
+  const [selectedDate, setSelectedDate] = useState(() => getBusinessTodayDate());
+  const [selectedMonth, setSelectedMonth] = useState(() =>
+    getBusinessTodayDate().slice(0, 7),
+  );
+
+  const historyRequestSeq = useRef(0);
+
   const loadRevenueData = useCallback(async () => {
     try {
       setRevenueLoading(true);
@@ -96,35 +115,74 @@ export default function StaffDashboardPage() {
   }, []);
 
   const loadHistoryData = useCallback(
-    async (pageToLoad = pagination.page, statusFilter = selectedStatus) => {
+    async ({
+      page = 1,
+      limit = 10,
+      status = "",
+      mode = "day",
+      date = "",
+      month = "",
+    } = {}) => {
+      const seq = ++historyRequestSeq.current;
       try {
         setHistoryLoading(true);
-        const data = await getStaffOrderHistory({
-          page: pageToLoad,
-          limit: pagination.limit,
-          status: statusFilter,
-        });
+        const params = {
+          page,
+          limit,
+          status,
+        };
+        if (mode === "day" && date) {
+          params.date = date;
+        } else if (mode === "month" && month) {
+          params.month = month;
+        }
+
+        const data = await getStaffOrderHistory(params);
+        if (seq !== historyRequestSeq.current) return;
+
         setHistoryOrders(data.orders || []);
         if (data.pagination) {
           setPagination(data.pagination);
         }
       } catch (err) {
+        if (seq !== historyRequestSeq.current) return;
         console.error("Failed to load order history:", err);
         setError(
           err instanceof Error ? err.message : "Unable to load order history.",
         );
       } finally {
-        setHistoryLoading(false);
+        if (seq === historyRequestSeq.current) {
+          setHistoryLoading(false);
+        }
       }
     },
-    [pagination.page, pagination.limit, selectedStatus],
+    [],
   );
 
   const refreshAll = useCallback(async () => {
     setError("");
     setCleanupMessage("");
-    await Promise.all([loadRevenueData(), loadHistoryData(pagination.page)]);
-  }, [loadRevenueData, loadHistoryData, pagination.page]);
+    await Promise.all([
+      loadRevenueData(),
+      loadHistoryData({
+        page: pagination.page,
+        limit: pagination.limit,
+        status: selectedStatus,
+        mode: historyMode,
+        date: selectedDate,
+        month: selectedMonth,
+      }),
+    ]);
+  }, [
+    loadRevenueData,
+    loadHistoryData,
+    pagination.page,
+    pagination.limit,
+    selectedStatus,
+    historyMode,
+    selectedDate,
+    selectedMonth,
+  ]);
 
   useEffect(() => {
     let mounted = true;
@@ -133,11 +191,26 @@ export default function StaffDashboardPage() {
       try {
         const response = await getCurrentStaff();
         if (!mounted) return;
+        if (!response?.user) {
+          router.replace("/login");
+          return;
+        }
         setStaff(response.user);
+        setLoading(false);
+
+        const initialDate = getBusinessTodayDate();
+        const initialMonth = initialDate.slice(0, 7);
 
         await Promise.all([
           loadRevenueData(),
-          loadHistoryData(1, selectedStatus),
+          loadHistoryData({
+            page: 1,
+            limit: 10,
+            status: "",
+            mode: "day",
+            date: initialDate,
+            month: initialMonth,
+          }),
         ]);
       } catch {
         if (mounted) {
@@ -155,7 +228,7 @@ export default function StaffDashboardPage() {
     return () => {
       mounted = false;
     };
-  }, [router, loadRevenueData, loadHistoryData, selectedStatus]);
+  }, [router, loadRevenueData, loadHistoryData]);
 
   async function handleLogout() {
     try {
@@ -166,15 +239,110 @@ export default function StaffDashboardPage() {
     }
   }
 
+  async function handleModeChange(newMode) {
+    if (newMode === historyMode) return;
+    setHistoryMode(newMode);
+    await loadHistoryData({
+      page: 1,
+      limit: pagination.limit,
+      status: selectedStatus,
+      mode: newMode,
+      date: selectedDate,
+      month: selectedMonth,
+    });
+  }
+
+  async function handleDateChange(newDate) {
+    setSelectedDate(newDate);
+    await loadHistoryData({
+      page: 1,
+      limit: pagination.limit,
+      status: selectedStatus,
+      mode: "day",
+      date: newDate,
+      month: selectedMonth,
+    });
+  }
+
+  async function handleMonthChange(newMonth) {
+    setSelectedMonth(newMonth);
+    await loadHistoryData({
+      page: 1,
+      limit: pagination.limit,
+      status: selectedStatus,
+      mode: "month",
+      date: selectedDate,
+      month: newMonth,
+    });
+  }
+
   async function handlePageChange(newPage) {
     if (newPage < 1 || newPage > pagination.totalPages || historyLoading) return;
-    await loadHistoryData(newPage, selectedStatus);
+    await loadHistoryData({
+      page: newPage,
+      limit: pagination.limit,
+      status: selectedStatus,
+      mode: historyMode,
+      date: selectedDate,
+      month: selectedMonth,
+    });
   }
 
   async function handleStatusFilterChange(newStatus) {
     setSelectedStatus(newStatus);
-    await loadHistoryData(1, newStatus);
+    await loadHistoryData({
+      page: 1,
+      limit: pagination.limit,
+      status: newStatus,
+      mode: historyMode,
+      date: selectedDate,
+      month: selectedMonth,
+    });
   }
+
+  const groupedOrdersByDate = useMemo(() => {
+    if (historyMode !== "month" || historyOrders.length === 0) return [];
+
+    const groups = new Map();
+    for (const order of historyOrders) {
+      let dateKey = "Unknown";
+      if (order.accepted_at) {
+        try {
+          const d = new Date(order.accepted_at);
+          if (!isNaN(d.getTime())) {
+            dateKey = new Intl.DateTimeFormat("en-CA", {
+              timeZone: revenue.timeZone || "Asia/Kolkata",
+            }).format(d);
+          }
+        } catch {
+          dateKey = "Unknown";
+        }
+      }
+
+      if (!groups.has(dateKey)) {
+        groups.set(dateKey, []);
+      }
+      groups.get(dateKey).push(order);
+    }
+
+    return Array.from(groups.entries()).map(([dateKey, orders]) => {
+      let heading = dateKey;
+      if (dateKey !== "Unknown" && dateKey.includes("-")) {
+        try {
+          const [y, m, d] = dateKey.split("-").map(Number);
+          heading = new Intl.DateTimeFormat("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+            timeZone: "UTC",
+          }).format(new Date(Date.UTC(y, m - 1, d, 12, 0, 0)));
+        } catch {
+          heading = dateKey;
+        }
+      }
+      return { dateKey, heading, orders };
+    });
+  }, [historyMode, historyOrders, revenue.timeZone]);
 
   async function handleTriggerCleanup() {
     try {
@@ -433,6 +601,18 @@ export default function StaffDashboardPage() {
         {/* ORDER HISTORY                                                */}
         {/* ============================================================ */}
         <section className="space-y-4">
+          {/* Day / Month Period Selector */}
+          <HistoryPeriodSelector
+            mode={historyMode}
+            onModeChange={handleModeChange}
+            selectedDate={selectedDate}
+            onDateChange={handleDateChange}
+            selectedMonth={selectedMonth}
+            onMonthChange={handleMonthChange}
+            disabled={historyLoading}
+            timeZone={revenue.timeZone}
+          />
+
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
@@ -488,13 +668,83 @@ export default function StaffDashboardPage() {
           ) : historyOrders.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-stone/50 bg-white/60 p-12 text-center text-xs text-charcoal-deep/50 space-y-1">
               <p className="font-bold text-sm text-charcoal-deep/70 font-serif">
-                No orders in history
+                {historyMode === "day"
+                  ? "No orders found for this date."
+                  : "No orders found for this month."}
               </p>
               <p>
                 {selectedStatus
-                  ? `No orders matching status "${selectedStatus}".`
-                  : "No accepted orders have been recorded yet."}
+                  ? `No orders matching status "${STATUS_CONFIG[selectedStatus]?.label || selectedStatus}".`
+                  : `No accepted orders recorded for this ${historyMode === "day" ? "date" : "month"}.`}
               </p>
+            </div>
+          ) : historyMode === "month" ? (
+            <div className="space-y-6">
+              {groupedOrdersByDate.map((group) => (
+                <div key={group.dateKey} className="space-y-3">
+                  <div className="flex items-center gap-2.5 border-b border-stone/30 pb-2">
+                    <div className="h-2 w-2 rounded-full bg-amber-warm" />
+                    <h3 className="font-serif text-base sm:text-lg font-bold text-charcoal-deep">
+                      {group.heading}
+                    </h3>
+                    <span className="rounded-full bg-cream-warm/70 border border-stone/40 px-2.5 py-0.5 text-[10px] font-bold text-charcoal-deep/60">
+                      {group.orders.length} {group.orders.length === 1 ? "order" : "orders"}
+                    </span>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {group.orders.map((order) => (
+                      <StaffOrderCard key={order.id} order={order} readOnly />
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {/* Pagination Controls for Monthly View */}
+              <div className="rounded-2xl border border-stone/40 bg-white px-4 py-3 sm:px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-2xs">
+                <span className="text-xs text-charcoal-deep/60">
+                  Showing{" "}
+                  <strong>
+                    {pagination.total === 0
+                      ? 0
+                      : (pagination.page - 1) * pagination.limit + 1}
+                  </strong>{" "}
+                  to{" "}
+                  <strong>
+                    {Math.min(
+                      pagination.page * pagination.limit,
+                      pagination.total,
+                    )}
+                  </strong>{" "}
+                  of <strong>{pagination.total}</strong> orders
+                </span>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handlePageChange(pagination.page - 1)}
+                    disabled={pagination.page <= 1 || historyLoading}
+                    className="inline-flex items-center rounded-xl border border-stone/40 bg-white px-3 py-1.5 text-xs font-semibold text-charcoal-deep hover:bg-cream-warm/40 transition disabled:opacity-40"
+                  >
+                    Previous
+                  </button>
+
+                  <span className="text-xs font-semibold text-charcoal-deep px-2">
+                    Page {pagination.page} of {pagination.totalPages}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => handlePageChange(pagination.page + 1)}
+                    disabled={
+                      pagination.page >= pagination.totalPages || historyLoading
+                    }
+                    className="inline-flex items-center rounded-xl border border-stone/40 bg-white px-3 py-1.5 text-xs font-semibold text-charcoal-deep hover:bg-cream-warm/40 transition disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="rounded-3xl border border-stone/50 bg-white shadow-xs overflow-hidden">

@@ -392,8 +392,289 @@ async function runTests() {
     await waitUntilPromise;
   }
 
+  // -------------------------------------------------------------
+  // TEST 8: Day-Mode Order History & Timezone Midnight Boundaries
+  // -------------------------------------------------------------
+  console.log("✓ Test 8: Day-Mode Order History & Timezone Midnight Boundaries");
+  {
+    // Sept 30 in IST ends at 2026-09-30T18:29:59.999Z
+    // Oct 1 in IST starts at 2026-09-30T18:30:00.000Z
+    // Oct 1 in IST ends at 2026-10-01T18:29:59.999Z
+    // Oct 2 in IST starts at 2026-10-01T18:30:00.000Z
+
+    // Insert order right at midnight start of Oct 1 (18:30:00 UTC Sept 30)
+    sqlite.exec(`
+      INSERT INTO orders (id, table_session_id, customer_session_id, status, total_amount_minor, accepted_at, created_at, updated_at)
+      VALUES ('order-oct1-midnight', 'ts-test-1', 'cs-test-1', 'ACCEPTED', 15000, '2026-09-30T18:30:00.000Z', '2026-09-30T18:30:00.000Z', '2026-09-30T18:30:00.000Z');
+      INSERT INTO order_items (id, order_id, menu_item_id, item_name_snapshot, unit_price_minor, quantity, line_total_minor)
+      VALUES ('oi-oct1-m', 'order-oct1-midnight', 'item-1', 'Paneer Butter Masala', 15000, 1, 15000);
+
+      INSERT INTO orders (id, table_session_id, customer_session_id, status, total_amount_minor, accepted_at, created_at, updated_at)
+      VALUES ('order-sept30-late', 'ts-test-1', 'cs-test-1', 'ACCEPTED', 16000, '2026-09-30T18:29:59.000Z', '2026-09-30T18:29:59.000Z', '2026-09-30T18:29:59.000Z');
+      INSERT INTO order_items (id, order_id, menu_item_id, item_name_snapshot, unit_price_minor, quantity, line_total_minor)
+      VALUES ('oi-sep30-l', 'order-sept30-late', 'item-1', 'Paneer Butter Masala', 16000, 1, 16000);
+    `);
+
+    const refDate = new Date("2026-10-01T20:00:00.000Z");
+
+    // Query for 2026-10-01:
+    // Must include 'order-oct1-midnight' (18:30:00Z)
+    // Must NOT include 'order-sept30-late' (18:29:59Z)
+    const oct1History = await getStaffOrderHistory(d1 as any, {
+      date: "2026-10-01",
+      referenceDate: refDate,
+    });
+    assert.strictEqual(oct1History.orders.some((o) => o.id === "order-oct1-midnight"), true);
+    assert.strictEqual(oct1History.orders.some((o) => o.id === "order-sept30-late"), false);
+    assert.strictEqual(oct1History.filter?.type, "day");
+    assert.strictEqual(oct1History.filter?.date, "2026-10-01");
+
+    // Query for 2026-09-30:
+    // Must include 'order-sept30-late'
+    // Must NOT include 'order-oct1-midnight'
+    const sept30History = await getStaffOrderHistory(d1 as any, {
+      date: "2026-09-30",
+      referenceDate: refDate,
+    });
+    assert.strictEqual(sept30History.orders.some((o) => o.id === "order-sept30-late"), true);
+    assert.strictEqual(sept30History.orders.some((o) => o.id === "order-oct1-midnight"), false);
+
+    // Empty date check: a past date with no orders
+    const emptyDayHistory = await getStaffOrderHistory(d1 as any, {
+      date: "2026-09-01",
+      referenceDate: refDate,
+    });
+    assert.strictEqual(emptyDayHistory.orders.length, 0);
+    assert.strictEqual(emptyDayHistory.pagination.total, 0);
+
+    // Date older than 6 months gracefully returns empty results
+    const oldDateHistory = await getStaffOrderHistory(d1 as any, {
+      date: "2025-01-01",
+      referenceDate: refDate,
+    });
+    assert.strictEqual(oldDateHistory.orders.length, 0);
+
+    // Verify October 2, 2026 handling explicitly
+    // In IST:
+    // October 2 starts at 2026-10-01T18:30:00.000Z
+    // October 2 ends (half-open) at 2026-10-02T18:30:00.000Z
+    // October 3 starts at 2026-10-02T18:30:00.000Z
+    sqlite.exec(`
+      INSERT INTO orders (id, table_session_id, customer_session_id, status, total_amount_minor, accepted_at, created_at, updated_at)
+      VALUES ('order-oct2-start', 'ts-test-1', 'cs-test-1', 'ACCEPTED', 10000, '2026-10-01T18:30:00.000Z', '2026-10-01T18:30:00.000Z', '2026-10-01T18:30:00.000Z');
+      INSERT INTO order_items (id, order_id, menu_item_id, item_name_snapshot, unit_price_minor, quantity, line_total_minor)
+      VALUES ('oi-oct2-start', 'order-oct2-start', 'item-1', 'Paneer Butter Masala', 10000, 1, 10000);
+
+      INSERT INTO orders (id, table_session_id, customer_session_id, status, total_amount_minor, accepted_at, created_at, updated_at)
+      VALUES ('order-oct2-noon', 'ts-test-1', 'cs-test-1', 'SERVED', 12000, '2026-10-02T06:30:00.000Z', '2026-10-02T06:30:00.000Z', '2026-10-02T06:30:00.000Z');
+      INSERT INTO order_items (id, order_id, menu_item_id, item_name_snapshot, unit_price_minor, quantity, line_total_minor)
+      VALUES ('oi-oct2-noon', 'order-oct2-noon', 'item-1', 'Paneer Butter Masala', 12000, 1, 12000);
+
+      INSERT INTO orders (id, table_session_id, customer_session_id, status, total_amount_minor, accepted_at, created_at, updated_at)
+      VALUES ('order-oct2-late', 'ts-test-1', 'cs-test-1', 'ACCEPTED', 14000, '2026-10-02T18:29:59.999Z', '2026-10-02T18:29:59.999Z', '2026-10-02T18:29:59.999Z');
+      INSERT INTO order_items (id, order_id, menu_item_id, item_name_snapshot, unit_price_minor, quantity, line_total_minor)
+      VALUES ('oi-oct2-late', 'order-oct2-late', 'item-1', 'Paneer Butter Masala', 14000, 1, 14000);
+
+      INSERT INTO orders (id, table_session_id, customer_session_id, status, total_amount_minor, accepted_at, created_at, updated_at)
+      VALUES ('order-oct3-start', 'ts-test-1', 'cs-test-1', 'ACCEPTED', 18000, '2026-10-02T18:30:00.000Z', '2026-10-02T18:30:00.000Z', '2026-10-02T18:30:00.000Z');
+      INSERT INTO order_items (id, order_id, menu_item_id, item_name_snapshot, unit_price_minor, quantity, line_total_minor)
+      VALUES ('oi-oct3-start', 'order-oct3-start', 'item-1', 'Paneer Butter Masala', 18000, 1, 18000);
+    `);
+
+    const refDateOct3 = new Date("2026-10-03T12:00:00.000Z");
+
+    const oct2History = await getStaffOrderHistory(d1 as any, {
+      date: "2026-10-02",
+      referenceDate: refDateOct3,
+    });
+    assert.strictEqual(oct2History.filter?.type, "day");
+    assert.strictEqual(oct2History.filter?.date, "2026-10-02");
+    assert.strictEqual(oct2History.orders.some((o) => o.id === "order-oct2-start"), true);
+    assert.strictEqual(oct2History.orders.some((o) => o.id === "order-oct2-noon"), true);
+    assert.strictEqual(oct2History.orders.some((o) => o.id === "order-oct2-late"), true);
+    assert.strictEqual(oct2History.orders.some((o) => o.id === "order-oct3-start"), false);
+
+    const oct3History = await getStaffOrderHistory(d1 as any, {
+      date: "2026-10-03",
+      referenceDate: refDateOct3,
+    });
+    assert.strictEqual(oct3History.orders.some((o) => o.id === "order-oct3-start"), true);
+    assert.strictEqual(oct3History.orders.some((o) => o.id === "order-oct2-late"), false);
+  }
+
+  // -------------------------------------------------------------
+  // TEST 9: Month-Mode Order History & Grouping Verification
+  // -------------------------------------------------------------
+  console.log("✓ Test 9: Month-Mode Order History & Aggregation");
+  {
+    const refDate = new Date("2026-10-03T20:00:00.000Z");
+
+    // Query October 2026
+    const octMonthHistory = await getStaffOrderHistory(d1 as any, {
+      month: "2026-10",
+      referenceDate: refDate,
+    });
+    assert.ok(octMonthHistory.orders.length > 0);
+    assert.strictEqual(octMonthHistory.filter?.type, "month");
+    assert.strictEqual(octMonthHistory.filter?.month, "2026-10");
+    // All orders in October must have accepted_at in October IST
+    for (const o of octMonthHistory.orders) {
+      assert.ok(o.accepted_at! >= "2026-09-30T18:30:00.000Z" && o.accepted_at! < "2026-10-31T18:30:00.000Z");
+    }
+
+    // Query September 2026
+    const sepMonthHistory = await getStaffOrderHistory(d1 as any, {
+      month: "2026-09",
+      referenceDate: refDate,
+    });
+    assert.ok(sepMonthHistory.orders.length > 0);
+    for (const o of sepMonthHistory.orders) {
+      assert.ok(o.accepted_at! >= "2026-08-31T18:30:00.000Z" && o.accepted_at! < "2026-09-30T18:30:00.000Z");
+    }
+
+    // Month with no orders returns empty
+    const emptyMonthHistory = await getStaffOrderHistory(d1 as any, {
+      month: "2026-07",
+      referenceDate: refDate,
+    });
+    assert.strictEqual(emptyMonthHistory.orders.length, 0);
+  }
+
+  // -------------------------------------------------------------
+  // TEST 10: API Endpoint Validation (Future dates, malformed, conflicts)
+  // -------------------------------------------------------------
+  console.log("✓ Test 10: API endpoint validation for dates, months, pagination");
+  {
+    // A) Both date and month provided simultaneously -> 400 Bad Request
+    const conflictRes = await worker.fetch(
+      new Request("http://localhost/api/staff/dashboard/history?date=2026-10-01&month=2026-10", {
+        headers: { Cookie: staffCookieHeader },
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    assert.strictEqual(conflictRes.status, 400);
+    const conflictBody = await conflictRes.json();
+    assert.strictEqual(conflictBody.ok, false);
+    assert.ok(conflictBody.error.includes("simultaneously"));
+
+    // B) Future date -> 400 Bad Request
+    const futureDateRes = await worker.fetch(
+      new Request("http://localhost/api/staff/dashboard/history?date=2099-01-01", {
+        headers: { Cookie: staffCookieHeader },
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    assert.strictEqual(futureDateRes.status, 400);
+    const futureDateBody = await futureDateRes.json();
+    assert.strictEqual(futureDateBody.ok, false);
+    assert.ok(futureDateBody.error.includes("future"));
+
+    // C) Malformed / impossible date (e.g. 2026-02-30) -> 400 Bad Request
+    const impossibleDateRes = await worker.fetch(
+      new Request("http://localhost/api/staff/dashboard/history?date=2026-02-30", {
+        headers: { Cookie: staffCookieHeader },
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    assert.strictEqual(impossibleDateRes.status, 400);
+
+    const malformedDateRes = await worker.fetch(
+      new Request("http://localhost/api/staff/dashboard/history?date=invalid-date", {
+        headers: { Cookie: staffCookieHeader },
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    assert.strictEqual(malformedDateRes.status, 400);
+
+    // D) Future month -> 400 Bad Request
+    const futureMonthRes = await worker.fetch(
+      new Request("http://localhost/api/staff/dashboard/history?month=2099-01", {
+        headers: { Cookie: staffCookieHeader },
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    assert.strictEqual(futureMonthRes.status, 400);
+
+    // E) Malformed month (e.g. 2026-13) -> 400 Bad Request
+    const badMonthRes = await worker.fetch(
+      new Request("http://localhost/api/staff/dashboard/history?month=2026-13", {
+        headers: { Cookie: staffCookieHeader },
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    assert.strictEqual(badMonthRes.status, 400);
+
+    // F) Invalid pagination (e.g. page=-1, limit=abc) -> 400 Bad Request
+    const badPageRes = await worker.fetch(
+      new Request("http://localhost/api/staff/dashboard/history?page=-1", {
+        headers: { Cookie: staffCookieHeader },
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    assert.strictEqual(badPageRes.status, 400);
+
+    const badLimitRes = await worker.fetch(
+      new Request("http://localhost/api/staff/dashboard/history?limit=xyz", {
+        headers: { Cookie: staffCookieHeader },
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    assert.strictEqual(badLimitRes.status, 400);
+
+    // G) Valid date request succeeds with 200 and filter metadata
+    const validDayRes = await worker.fetch(
+      new Request("http://localhost/api/staff/dashboard/history?date=2026-09-30", {
+        headers: { Cookie: staffCookieHeader },
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    assert.strictEqual(validDayRes.status, 200);
+    const validDayBody = await validDayRes.json();
+    assert.strictEqual(validDayBody.ok, true);
+    assert.strictEqual(validDayBody.filter.type, "day");
+    assert.strictEqual(validDayBody.filter.date, "2026-09-30");
+
+    // H) Valid month request succeeds with 200
+    const validMonthRes = await worker.fetch(
+      new Request("http://localhost/api/staff/dashboard/history?month=2026-09", {
+        headers: { Cookie: staffCookieHeader },
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    assert.strictEqual(validMonthRes.status, 200);
+    const validMonthBody = await validMonthRes.json();
+    assert.strictEqual(validMonthBody.ok, true);
+    assert.strictEqual(validMonthBody.filter.type, "month");
+    assert.strictEqual(validMonthBody.filter.month, "2026-09");
+
+    // I) Valid October 2 Day mode request succeeds with 200 and returns October 2 orders
+    const oct2ApiRes = await worker.fetch(
+      new Request("http://localhost/api/staff/dashboard/history?date=2026-10-02", {
+        headers: { Cookie: staffCookieHeader },
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    assert.strictEqual(oct2ApiRes.status, 200);
+    const oct2ApiBody = await oct2ApiRes.json();
+    assert.strictEqual(oct2ApiBody.ok, true);
+    assert.strictEqual(oct2ApiBody.filter.type, "day");
+    assert.strictEqual(oct2ApiBody.filter.date, "2026-10-02");
+    assert.strictEqual(oct2ApiBody.orders.some((o: any) => o.id === "order-oct2-noon"), true);
+  }
+
   console.log("\n=================================================");
-  console.log("ALL 7 TEST SUITES PASSED CLEANLY!");
+  console.log("ALL 10 TEST SUITES PASSED CLEANLY!");
   console.log("=================================================");
 }
 

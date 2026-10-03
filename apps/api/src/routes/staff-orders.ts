@@ -56,16 +56,20 @@ staffOrderRoutes.get(
 staffOrderRoutes.get(
   "/history",
   async (c) => {
-    const page = parseInt(c.req.query("page") || "1", 10);
-    const limit = parseInt(c.req.query("limit") || "10", 10);
-    const status = c.req.query("status") || undefined;
+    const { parseHistoryQueryParams } = await import("./staff-dashboard");
+    const parsed = parseHistoryQueryParams(c);
+    if (parsed.error) {
+      return c.json({ ok: false, error: parsed.error }, 400);
+    }
 
     const { getStaffOrderHistory } = await import("../db/dashboard");
 
     const result = await getStaffOrderHistory(c.env.DB, {
-      page,
-      limit,
-      status,
+      page: parsed.page,
+      limit: parsed.limit,
+      status: parsed.status,
+      date: parsed.date,
+      month: parsed.month,
     });
 
     return c.json({

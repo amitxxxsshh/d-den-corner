@@ -19,7 +19,13 @@ function getStatusStyle(status) {
     case "NEW":
       return "bg-amber-warm/15 text-amber-gold border-amber-warm/40 font-bold";
     case "ACCEPTED":
-      return "bg-forest/15 text-forest border-forest/40 font-bold";
+      return "bg-amber-warm/25 text-charcoal-deep border-amber-warm/50 font-bold";
+    case "PREPARING":
+      return "bg-charcoal-deep text-amber-light border-amber-warm/30 font-bold";
+    case "READY":
+      return "bg-forest/20 text-forest border-forest/40 font-extrabold";
+    case "SERVED":
+      return "bg-green-muted/20 text-forest border-green-muted/30 font-semibold";
     default:
       return "bg-stone/30 text-charcoal-deep/70 border-stone/50";
   }
@@ -29,16 +35,19 @@ export default function StaffOrderCard({
   order,
   onAdvance,
   busy,
+  readOnly = false,
 }) {
   const nextLabel = NEXT_LABEL[order.status];
   const statusStyle = getStatusStyle(order.status);
 
   const orderTime =
     order.created_at || order.createdAt
-      ? new Date(order.created_at || order.createdAt).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
+      ? !isNaN(new Date(order.created_at || order.createdAt).getTime())
+        ? new Date(order.created_at || order.createdAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : null
       : null;
 
   return (
@@ -82,7 +91,7 @@ export default function StaffOrderCard({
 
       {/* Items Breakdown */}
       <div className="mt-3.5 space-y-2 border-t border-stone/30 pt-3">
-        {order.items.map((item) => (
+        {(order.items || []).map((item) => (
           <div
             key={item.id}
             className="flex items-start justify-between gap-2.5 text-xs"
@@ -114,7 +123,21 @@ export default function StaffOrderCard({
           </span>
         </div>
 
-        {nextLabel ? (
+        {readOnly || !onAdvance ? (
+          <div className="text-right">
+            {order.accepted_at ? (
+              <span className="text-[11px] text-charcoal-deep/60 block">
+                Accepted:{" "}
+                {!isNaN(new Date(order.accepted_at).getTime())
+                  ? new Date(order.accepted_at).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : order.accepted_at}
+              </span>
+            ) : null}
+          </div>
+        ) : nextLabel ? (
           <button
             type="button"
             onClick={() => onAdvance(order.id)}

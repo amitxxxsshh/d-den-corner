@@ -3,6 +3,8 @@ import type { D1Database } from "@cloudflare/workers-types";
 import { queryMany, queryOne } from "./index";
 import {
   DEFAULT_BUSINESS_TIMEZONE,
+  getDateBoundaries,
+  getMonthBoundaries,
   getSixMonthsAgoIso,
   getTimezoneBoundaries,
 } from "../utils/timezone";
@@ -54,6 +56,11 @@ export interface OrderHistoryResult {
     limit: number;
     total: number;
     totalPages: number;
+  };
+  filter?: {
+    type: "day" | "month" | "all";
+    date?: string;
+    month?: string;
   };
 }
 
@@ -138,6 +145,9 @@ export async function getStaffOrderHistory(
     page?: number;
     limit?: number;
     status?: string;
+    date?: string;
+    month?: string;
+    timeZone?: string;
     referenceDate?: Date;
   } = {},
 ): Promise<OrderHistoryResult> {
@@ -145,7 +155,21 @@ export async function getStaffOrderHistory(
   const limit = Math.min(100, Math.max(1, Number(options.limit || 10)));
   const offset = (page - 1) * limit;
 
+  const timeZone = options.timeZone || DEFAULT_BUSINESS_TIMEZONE;
   const sixMonthsAgo = getSixMonthsAgoIso(options.referenceDate);
+
+  let periodStart: string | null = null;
+  let periodEnd: string | null = null;
+
+  if (options.date) {
+    const boundaries = getDateBoundaries(options.date, timeZone);
+    periodStart = boundaries.start;
+    periodEnd = boundaries.end;
+  } else if (options.month) {
+    const boundaries = getMonthBoundaries(options.month, timeZone);
+    periodStart = boundaries.start;
+    periodEnd = boundaries.end;
+  }
 
   const allowedStatuses: OrderStatus[] = [
     "ACCEPTED",
@@ -160,7 +184,7 @@ export async function getStaffOrderHistory(
       ? (options.status.toUpperCase() as OrderStatus)
       : null;
 
-  // Build WHERE clause: only accepted orders within 6 months
+  // Build WHERE clause: only accepted orders within 6 months and matching period
   let countSql = `
     SELECT COUNT(*) AS total
     FROM orders
@@ -169,6 +193,11 @@ export async function getStaffOrderHistory(
       AND accepted_at >= ?
   `;
   const countBindings: unknown[] = [sixMonthsAgo];
+
+  if (periodStart && periodEnd) {
+    countSql += ` AND accepted_at >= ? AND accepted_at < ?`;
+    countBindings.push(periodStart, periodEnd);
+  }
 
   if (filterStatus) {
     countSql += ` AND status = ?`;
@@ -207,6 +236,11 @@ export async function getStaffOrderHistory(
   `;
   const selectBindings: unknown[] = [sixMonthsAgo];
 
+  if (periodStart && periodEnd) {
+    selectSql += ` AND o.accepted_at >= ? AND o.accepted_at < ?`;
+    selectBindings.push(periodStart, periodEnd);
+  }
+
   if (filterStatus) {
     selectSql += ` AND o.status = ?`;
     selectBindings.push(filterStatus);
@@ -238,6 +272,12 @@ export async function getStaffOrderHistory(
     ...selectBindings,
   );
 
+  const filterMeta = {
+    type: options.date ? ("day" as const) : options.month ? ("month" as const) : ("all" as const),
+    ...(options.date ? { date: options.date } : {}),
+    ...(options.month ? { month: options.month } : {}),
+  };
+
   if (rows.length === 0) {
     return {
       orders: [],
@@ -247,6 +287,7 @@ export async function getStaffOrderHistory(
         total,
         totalPages,
       },
+      filter: filterMeta,
     };
   }
 
@@ -317,6 +358,7 @@ export async function getStaffOrderHistory(
       total,
       totalPages,
     },
+    filter: filterMeta,
   };
 }
 
