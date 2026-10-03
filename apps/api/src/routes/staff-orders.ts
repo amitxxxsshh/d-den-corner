@@ -11,7 +11,6 @@ import {
 } from "../db/orders";
 
 import {
-  closeTableSession,
   getTableSessionById,
 } from "../db/sessions";
 import { getTableById } from "../db/tables";
@@ -303,10 +302,6 @@ async function handleCompleteOrder(c: any) {
     now,
   );
 
-  if (order.table_session_id) {
-    await closeTableSession(c.env.DB, order.table_session_id);
-  }
-
   const updatedOrder = await getOrderById(c.env.DB, orderId);
 
   return c.json({
@@ -318,4 +313,102 @@ async function handleCompleteOrder(c: any) {
 staffOrderRoutes.post("/:orderId/complete", handleCompleteOrder);
 staffOrderRoutes.post("/:orderId/close", handleCompleteOrder);
 
-export default staffOrderRoutes;
+staffOrderRoutes.delete(
+  "/:orderId/items/:itemId",
+  async (c) => {
+    const staffUserId = getAuthenticatedStaffUserId(c);
+
+    if (!staffUserId) {
+      return c.json(
+        {
+          ok: false,
+          message: "Staff authentication is required.",
+        },
+        401,
+      );
+    }
+
+    const orderId = c.req.param("orderId");
+    const itemId = c.req.param("itemId");
+
+    const order = await getOrderById(c.env.DB, orderId);
+
+    if (!order) {
+      return c.json(
+        {
+          ok: false,
+          message: "Order not found.",
+        },
+        404,
+      );
+    }
+
+    if (order.status !== "NEW") {
+      return c.json(
+        {
+          ok: false,
+          message: "Items can only be removed from orders in NEW status.",
+        },
+        400,
+      );
+    }
+
+    const allItems = await getOrderItems(c.env.DB, orderId);
+    const itemToDelete = allItems.find((item) => item.id === itemId);
+
+    if (!itemToDelete) {
+      return c.json(
+        {
+          ok: false,
+          message: "Item not found in this order.",
+        },
+        404,
+      );
+    }
+
+    if (allItems.length <= 1) {
+      // Last item in order: resolve empty order by deleting it cleanly
+      await c.env.DB.batch([
+        c.env.DB.prepare("DELETE FROM order_items WHERE id = ?").bind(itemId),
+        c.env.DB.prepare("DELETE FROM order_status_history WHERE order_id = ?").bind(orderId),
+        c.env.DB.prepare("DELETE FROM orders WHERE id = ?").bind(orderId),
+      ]);
+
+      return c.json({
+        ok: true,
+        deleted: true,
+        orderId,
+        message: "Order was cancelled and removed because its last item was removed.",
+      });
+    }
+
+    const remainingItems = allItems.filter((item) => item.id !== itemId);
+    const newTotalMinor = remainingItems.reduce(
+      (sum, item) => sum + item.line_total_minor,
+      0,
+    );
+    const now = new Date().toISOString();
+
+    await c.env.DB.batch([
+      c.env.DB.prepare("DELETE FROM order_items WHERE id = ?").bind(itemId),
+      c.env.DB.prepare(
+        "UPDATE orders SET total_amount_minor = ?, updated_at = ? WHERE id = ?",
+      ).bind(newTotalMinor, now, orderId),
+    ]);
+
+    const updatedOrder = await getOrderById(c.env.DB, orderId);
+    const updatedItems = await getOrderItems(c.env.DB, orderId);
+
+    return c.json({
+      ok: true,
+      deleted: false,
+      order: {
+        ...updatedOrder,
+        items: updatedItems,
+      },
+    });
+  },
+);
+
+export default staffOrderRoutes;
+

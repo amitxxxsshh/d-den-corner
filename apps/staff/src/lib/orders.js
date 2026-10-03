@@ -41,3 +41,17 @@ export async function completeOrder(
     },
   );
 }
+
+export async function deleteOrderItem(
+  orderId,
+  itemId,
+) {
+  return apiRequest(
+    `/api/staff/orders/${encodeURIComponent(
+      orderId,
+    )}/items/${encodeURIComponent(itemId)}`,
+    {
+      method: "DELETE",
+    },
+  );
+}

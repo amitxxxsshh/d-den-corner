@@ -333,137 +333,8 @@ export async function createOrder(
   }
 
   /*
-   * Check if the table already has an active order (NEW or ACCEPTED).
-   * If an active order exists, append the new items to it instead of creating a new order ID.
-   */
-  const existingActiveOrder = await queryOne<OrderRow>(
-    db,
-    `
-      SELECT
-        o.id,
-        o.table_session_id,
-        o.customer_session_id,
-        o.status,
-        o.total_amount_minor,
-        o.accepted_at,
-        o.created_at,
-        o.updated_at
-      FROM orders o
-      JOIN table_sessions ts ON ts.id = o.table_session_id
-      WHERE (
-        o.table_session_id = ?
-        OR ts.table_id = (SELECT table_id FROM table_sessions WHERE id = ?)
-      )
-        AND ts.status = 'ACTIVE'
-        AND o.status IN ('NEW', 'ACCEPTED')
-      ORDER BY o.created_at ASC
-      LIMIT 1
-    `,
-    tableSessionId,
-    tableSessionId,
-  );
-
-  const targetExistingOrder =
-    existingActiveOrder ||
-    (await queryOne<OrderRow>(
-      db,
-      `
-        SELECT
-          o.id,
-          o.table_session_id,
-          o.customer_session_id,
-          o.status,
-          o.total_amount_minor,
-          o.accepted_at,
-          o.created_at,
-          o.updated_at
-        FROM orders o
-        LEFT JOIN table_sessions ts ON ts.id = o.table_session_id
-        WHERE o.table_session_id = ?
-          AND (ts.status = 'ACTIVE' OR ts.status IS NULL)
-          AND o.status IN ('NEW', 'ACCEPTED')
-        ORDER BY o.created_at ASC
-        LIMIT 1
-      `,
-      tableSessionId,
-    ));
-
-  if (targetExistingOrder) {
-    const existingOrderId = targetExistingOrder.id;
-
-    const statements = [
-      db
-        .prepare(
-          `
-            UPDATE orders
-            SET
-              total_amount_minor = total_amount_minor + ?,
-              updated_at = ?
-            WHERE id = ?
-          `,
-        )
-        .bind(
-          totalAmountMinor,
-          createdAt,
-          existingOrderId,
-        ),
-
-      ...preparedItems.map((item) =>
-        db
-          .prepare(
-            `
-              INSERT INTO order_items (
-                id,
-                order_id,
-                menu_item_id,
-                item_name_snapshot,
-                unit_price_minor,
-                quantity,
-                line_total_minor,
-                created_at
-              )
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            `,
-          )
-          .bind(
-            item.id,
-            existingOrderId,
-            item.menuItemId,
-            item.itemName,
-            item.unitPriceMinor,
-            item.quantity,
-            item.lineTotalMinor,
-            createdAt,
-          ),
-      ),
-    ];
-
-    await db.batch(statements);
-
-    const allItems = await getOrderItems(db, existingOrderId);
-
-    return {
-      id: existingOrderId,
-      table_session_id: targetExistingOrder.table_session_id,
-      customer_session_id: customerSessionId,
-      status: targetExistingOrder.status,
-      total_amount_minor: targetExistingOrder.total_amount_minor + totalAmountMinor,
-      accepted_at: targetExistingOrder.accepted_at,
-      items: allItems.map((item) => ({
-        id: item.id,
-        menu_item_id: item.menu_item_id,
-        item_name_snapshot: item.item_name_snapshot,
-        unit_price_minor: item.unit_price_minor,
-        quantity: item.quantity,
-        line_total_minor: item.line_total_minor,
-      })),
-      created_at: targetExistingOrder.created_at,
-    };
-  }
-
-  /*
-   * No active order exists for this table.
-   * Create a new order with a new Order ID.
+   * Every separate customer order submission creates a distinct order record.
+   * Multiple independent orders can exist under the same active table session.
    */
   const statements = [
     db
@@ -936,19 +807,14 @@ export async function getActiveStaffOrders(
       };
       groupsMap.set(tableId, group);
     } else {
-      // Consolidate any existing multiple orders into the primary active order
-      const primaryOrder = group.orders[0];
-      primaryOrder.items.push(...order.items);
-      primaryOrder.total_amount_minor += order.total_amount_minor;
+      group.orders.push(order);
     }
   }
 
   const tables = Array.from(groupsMap.values());
   tables.sort((a, b) => compareTableNamesNumerically(a.tableName, b.tableName));
 
-  const consolidatedOrders = tables.map((t) => t.orders[0]).filter(Boolean);
-
-  return { orders: consolidatedOrders, tables };
+  return { orders, tables };
 }
 
 export async function getActiveOrders(

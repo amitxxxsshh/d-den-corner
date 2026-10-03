@@ -17,6 +17,7 @@ import {
 import {
   advanceOrderStatus,
   completeOrder,
+  deleteOrderItem,
   getStaffOrders,
 } from "../lib/orders";
 
@@ -57,6 +58,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [busyOrderId, setBusyOrderId] = useState(null);
   const [staff, setStaff] = useState(null);
+  const [sortBy, setSortBy] = useState("latest");
 
   const loadOrders = useCallback(async () => {
     try {
@@ -160,7 +162,10 @@ export default function Home() {
 
       await completeOrder(orderId);
 
-      await loadOrders();
+      // Remove the completed order immediately from active list
+      setOrders((currentOrders) =>
+        currentOrders.filter((order) => order.id !== orderId),
+      );
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -172,7 +177,40 @@ export default function Home() {
     }
   }
 
-  // Filter only active orders (NEW and ACCEPTED), group by table, and sort tables numerically
+  async function handleDeleteItem(orderId, itemId) {
+    try {
+      setError("");
+      const response = await deleteOrderItem(orderId, itemId);
+
+      if (response.deleted) {
+        // Last item was removed; order was completely resolved and removed
+        setOrders((currentOrders) =>
+          currentOrders.filter((order) => order.id !== orderId),
+        );
+      } else if (response.order) {
+        // Order total and items updated
+        setOrders((currentOrders) =>
+          currentOrders.map((order) =>
+            order.id === orderId
+              ? {
+                  ...order,
+                  ...response.order,
+                }
+              : order,
+          ),
+        );
+      }
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to remove item.",
+      );
+      throw requestError;
+    }
+  }
+
+  // Filter only active orders (NEW and ACCEPTED), group by table, and sort
   const tableGroups = useMemo(() => {
     const activeOrders = orders.filter(
       (order) => order.status === "NEW" || order.status === "ACCEPTED",
@@ -197,10 +235,34 @@ export default function Home() {
     }
 
     const groups = Array.from(map.values());
-    groups.sort((a, b) => compareTableNamesNumerically(a.tableName, b.tableName));
+
+    // Sort orders within each table chronologically (earliest placed first)
+    for (const group of groups) {
+      group.orders.sort(
+        (a, b) =>
+          new Date(a.created_at || a.createdAt || 0) -
+          new Date(b.created_at || b.createdAt || 0),
+      );
+
+      const timestamps = group.orders.map((o) =>
+        new Date(o.created_at || o.createdAt || 0).getTime(),
+      );
+      group.latestOrderTimestamp =
+        timestamps.length > 0 ? Math.max(...timestamps) : 0;
+    }
+
+    if (sortBy === "latest") {
+      // Latest-order-first prioritization: tables with newest orders rise to the top
+      groups.sort((a, b) => b.latestOrderTimestamp - a.latestOrderTimestamp);
+    } else {
+      // Numerical table sorting
+      groups.sort((a, b) =>
+        compareTableNamesNumerically(a.tableName, b.tableName),
+      );
+    }
 
     return groups;
-  }, [orders]);
+  }, [orders, sortBy]);
 
   if (!staff) {
     return (
@@ -259,18 +321,49 @@ export default function Home() {
             </div>
 
             <p className="mt-0.5 text-xs text-charcoal-deep/65">
-              Live customer table orders grouped by dining table. Workflow: NEW → ACCEPTED. Updates automatically.
+              Live customer table orders grouped by dining table. Horizontally scrollable independent order cards.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 text-xs font-medium text-charcoal-deep/60">
-            <span className="h-2 w-2 rounded-full bg-forest animate-pulse" />
-            <span>Real-time polling active (5s)</span>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Sorting Controls */}
+            <div className="flex items-center gap-1 rounded-xl border border-stone/50 bg-white p-1 text-xs shadow-2xs">
+              <span className="text-[10px] uppercase font-bold text-charcoal-deep/50 px-1.5">
+                Sort:
+              </span>
+              <button
+                type="button"
+                onClick={() => setSortBy("latest")}
+                className={`rounded-lg px-2.5 py-1 text-xs transition ${
+                  sortBy === "latest"
+                    ? "bg-charcoal-deep text-amber-light font-bold shadow-xs"
+                    : "text-charcoal-deep/70 hover:text-charcoal-deep hover:bg-stone/20"
+                }`}
+              >
+                Latest Orders
+              </button>
+              <button
+                type="button"
+                onClick={() => setSortBy("table")}
+                className={`rounded-lg px-2.5 py-1 text-xs transition ${
+                  sortBy === "table"
+                    ? "bg-charcoal-deep text-amber-light font-bold shadow-xs"
+                    : "text-charcoal-deep/70 hover:text-charcoal-deep hover:bg-stone/20"
+                }`}
+              >
+                Table Number
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs font-medium text-charcoal-deep/60">
+              <span className="h-2 w-2 rounded-full bg-forest animate-pulse" />
+              <span>Real-time (5s)</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content Area - Strict Vertical Layout (One Table Per Row) */}
+      {/* Main Content Area - Vertical Table Sections */}
       <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
         {error ? (
           <div className="mb-6 rounded-2xl border border-terracotta/30 bg-terracotta/10 px-5 py-3.5 text-xs text-terracotta flex items-center justify-between">
@@ -303,7 +396,6 @@ export default function Home() {
             </p>
           </div>
         ) : (
-          /* Strict Vertical Sequence: TABLE 1 -> TABLE 2 -> TABLE 3 -> TABLE 4 */
           <div className="flex flex-col gap-6 w-full">
             {tableGroups.map((group) => (
               <StaffTableGroup
@@ -311,6 +403,7 @@ export default function Home() {
                 group={group}
                 onAcceptOrder={handleAcceptOrder}
                 onCompleteOrder={handleCompleteOrder}
+                onDeleteItem={handleDeleteItem}
                 busyOrderId={busyOrderId}
               />
             ))}

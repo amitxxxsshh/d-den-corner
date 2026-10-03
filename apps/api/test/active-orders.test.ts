@@ -68,7 +68,7 @@ function initTestDb() {
 
 async function runActiveOrdersTests() {
   console.log("=================================================");
-  console.log("RUNNING SINGLE ACTIVE ORDER PER TABLE TEST SUITE");
+  console.log("RUNNING MULTIPLE INDEPENDENT ORDERS PER TABLE TEST SUITE");
   console.log("=================================================\n");
 
   const { sqlite, d1 } = initTestDb();
@@ -151,10 +151,10 @@ async function runActiveOrdersTests() {
   };
 
   // -------------------------------------------------------------
-  // Test 1: Table 1 places first order (Laccha Paratha + Chicken Biryani)
+  // Scenario A: First order
   // -------------------------------------------------------------
-  console.log("✓ Test 1: Table 1 creates first order (Laccha Paratha + Chicken Biryani)");
-  let order1Id: string;
+  console.log("✓ Scenario A: Table 1 places first order (Laccha Paratha + Chicken Biryani)");
+  let orderAId: string;
   {
     const createRes = await worker.fetch(
       new Request("http://localhost/api/orders", {
@@ -175,12 +175,12 @@ async function runActiveOrdersTests() {
     const body = await createRes.json();
     assert.strictEqual(body.ok, true);
     assert.ok(body.order.id, "Order ID must be generated");
-    order1Id = body.order.id;
+    orderAId = body.order.id;
     assert.strictEqual(body.order.status, "NEW");
     assert.strictEqual(body.order.total_amount_minor, 3990 + 18000); // ₹219.90
     assert.strictEqual(body.order.items.length, 2);
 
-    // Verify staff active orders
+    // Verify staff active orders returns Table 1 with 1 order
     const staffRes = await worker.fetch(
       new Request("http://localhost/api/staff/orders", { headers: staffHeaders }),
       { DB: d1 } as any,
@@ -191,53 +191,23 @@ async function runActiveOrdersTests() {
     assert.strictEqual(staffBody.tables.length, 1);
     assert.strictEqual(staffBody.tables[0].tableName, "Table 1");
     assert.strictEqual(staffBody.tables[0].orders.length, 1);
-    assert.strictEqual(staffBody.tables[0].orders[0].id, order1Id);
+    assert.strictEqual(staffBody.tables[0].orders[0].id, orderAId);
     assert.strictEqual(staffBody.tables[0].orders[0].status, "NEW");
-    assert.strictEqual(staffBody.tables[0].orders[0].items.length, 2);
   }
 
   // -------------------------------------------------------------
-  // Test 2: Staff accepts Order 1 -> ACCEPTED
+  // Scenario B: Subsequent order while the first is NEW
+  // Must NOT merge! Must create a distinct order record with status NEW
   // -------------------------------------------------------------
-  console.log("✓ Test 2: Staff accepts Table 1 order (NEW -> ACCEPTED)");
-  {
-    const acceptRes = await worker.fetch(
-      new Request(`http://localhost/api/staff/orders/${order1Id}/status`, {
-        method: "POST",
-        headers: staffHeaders,
-      }),
-      { DB: d1 } as any,
-      {} as any,
-    );
-    assert.strictEqual(acceptRes.status, 200);
-    const acceptBody = await acceptRes.json();
-    assert.strictEqual(acceptBody.ok, true);
-    assert.strictEqual(acceptBody.order.status, "ACCEPTED");
-    assert.ok(acceptBody.order.accepted_at, "accepted_at timestamp must be set");
-
-    // Verify staff active orders reflects ACCEPTED
-    const staffRes = await worker.fetch(
-      new Request("http://localhost/api/staff/orders", { headers: staffHeaders }),
-      { DB: d1 } as any,
-      {} as any,
-    );
-    const staffBody = await staffRes.json();
-    assert.strictEqual(staffBody.tables.length, 1);
-    assert.strictEqual(staffBody.tables[0].orders[0].status, "ACCEPTED");
-  }
-
-  // -------------------------------------------------------------
-  // Test 3: Table 1 places another order later (Diet Coke)
-  // Must append to EXISTING active order, KEEP same Order ID, PRESERVE ACCEPTED
-  // -------------------------------------------------------------
-  console.log("✓ Test 3: Table 1 orders Diet Coke later -> Appends to same Order ID, status stays ACCEPTED");
+  console.log("✓ Scenario B: Table 1 places Order B while Order A is NEW -> Distinct Order ID, both remain NEW");
+  let orderBId: string;
   {
     const secondRes = await worker.fetch(
       new Request("http://localhost/api/orders", {
         method: "POST",
         headers: customerHeaders1,
         body: JSON.stringify({
-          items: [{ menuItemId: "item-coke", quantity: 1 }],
+          items: [{ menuItemId: "item-coke", quantity: 2 }],
         }),
       }),
       { DB: d1 } as any,
@@ -247,155 +217,254 @@ async function runActiveOrdersTests() {
     assert.strictEqual(secondRes.status, 201);
     const secondBody = await secondRes.json();
     assert.strictEqual(secondBody.ok, true);
+    orderBId = secondBody.order.id;
 
-    // IMPORTANT: DO NOT create a new order ID! Must keep existing order ID.
-    assert.strictEqual(
-      secondBody.order.id,
-      order1Id,
-      "Order ID must remain the same when appending to active table session",
+    // Distinct Order ID!
+    assert.notStrictEqual(
+      orderBId,
+      orderAId,
+      "Order B must receive a distinct Order ID from Order A",
     );
+    assert.strictEqual(secondBody.order.status, "NEW");
+    assert.strictEqual(secondBody.order.total_amount_minor, 10000); // 2 * 5000 = ₹100.00
+    assert.strictEqual(secondBody.order.items.length, 1);
 
-    // Status must remain ACCEPTED, not reset to NEW
-    assert.strictEqual(
-      secondBody.order.status,
-      "ACCEPTED",
-      "Order status must stay ACCEPTED when new items are added",
-    );
+    // DB Verification: Exactly 2 distinct order records for this table session
+    const orderRows = sqlite
+      .prepare("SELECT * FROM orders WHERE table_session_id = 'ts-1' ORDER BY created_at ASC")
+      .all() as any[];
+    assert.strictEqual(orderRows.length, 2, "Must be 2 distinct order records in DB for Table 1");
+    assert.strictEqual(orderRows[0].id, orderAId);
+    assert.strictEqual(orderRows[0].status, "NEW");
+    assert.strictEqual(orderRows[0].total_amount_minor, 21990);
+    assert.strictEqual(orderRows[1].id, orderBId);
+    assert.strictEqual(orderRows[1].status, "NEW");
+    assert.strictEqual(orderRows[1].total_amount_minor, 10000);
 
-    // Total must be updated: 3990 + 18000 + 5000 = 26990 (₹269.90)
-    assert.strictEqual(secondBody.order.total_amount_minor, 26990);
-
-    // Items list must contain all 3 items in order
-    assert.strictEqual(secondBody.order.items.length, 3);
-    assert.strictEqual(secondBody.order.items[0].item_name_snapshot, "Laccha Paratha");
-    assert.strictEqual(secondBody.order.items[1].item_name_snapshot, "Chicken Biryani");
-    assert.strictEqual(secondBody.order.items[2].item_name_snapshot, "Diet Coke");
-
-    // DATABASE VERIFICATION: strictly ONE row in orders for this table session
-    const orderRows = sqlite.prepare("SELECT * FROM orders WHERE table_session_id = 'ts-1'").all() as any[];
-    assert.strictEqual(orderRows.length, 1, "There must be strictly ONE order record in DB for Table 1");
-    assert.strictEqual(orderRows[0].id, order1Id);
-    assert.strictEqual(orderRows[0].total_amount_minor, 26990);
-    assert.strictEqual(orderRows[0].status, "ACCEPTED");
-
-    // Order items in DB must be 3 rows all referencing order1Id
-    const itemRows = sqlite.prepare("SELECT * FROM order_items WHERE order_id = ?").all(order1Id) as any[];
-    assert.strictEqual(itemRows.length, 3, "All 3 items must reference the single order ID in D1");
-
-    // STAFF API VERIFICATION:
+    // Staff API Verification: Table 1 section contains 2 distinct orders
     const staffRes = await worker.fetch(
       new Request("http://localhost/api/staff/orders", { headers: staffHeaders }),
       { DB: d1 } as any,
       {} as any,
     );
     const staffBody = await staffRes.json();
-    assert.strictEqual(staffBody.tables.length, 1, "Only one table group");
-    assert.strictEqual(staffBody.tables[0].orders.length, 1, "Strictly ONE order for Table 1");
-    assert.strictEqual(staffBody.tables[0].orders[0].id, order1Id);
-    assert.strictEqual(staffBody.tables[0].orders[0].total_amount_minor, 26990);
-    assert.strictEqual(staffBody.tables[0].orders[0].items.length, 3);
+    assert.strictEqual(staffBody.tables.length, 1);
+    const t1 = staffBody.tables[0];
+    assert.strictEqual(t1.orders.length, 2);
+    assert.strictEqual(t1.orders[0].id, orderAId);
+    assert.strictEqual(t1.orders[0].total_amount_minor, 21990);
+    assert.strictEqual(t1.orders[1].id, orderBId);
+    assert.strictEqual(t1.orders[1].total_amount_minor, 10000);
   }
 
   // -------------------------------------------------------------
-  // Test 4: Different Tables have Different Active Orders
-  // Table 2 places an order -> receives DIFFERENT Order ID
+  // Scenario C: Subsequent order after acceptance
+  // Accept Order A. Then place Order C. Order A stays ACCEPTED, Order C is NEW.
   // -------------------------------------------------------------
-  console.log("✓ Test 4: Table 2 places an order -> Gets its own unique Order ID");
-  let order2Id: string;
+  console.log("✓ Scenario C: Staff accepts Order A -> Order A ACCEPTED, Order B stays NEW, Order C placed as NEW");
+  let orderCId: string;
   {
+    // Accept Order A
+    const acceptRes = await worker.fetch(
+      new Request(`http://localhost/api/staff/orders/${orderAId}/status`, {
+        method: "POST",
+        headers: staffHeaders,
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    assert.strictEqual(acceptRes.status, 200);
+    const acceptBody = await acceptRes.json();
+    assert.strictEqual(acceptBody.order.status, "ACCEPTED");
+
+    // Table 1 places Order C
+    const thirdRes = await worker.fetch(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        headers: customerHeaders1,
+        body: JSON.stringify({
+          items: [{ menuItemId: "item-chai", quantity: 1 }],
+        }),
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    assert.strictEqual(thirdRes.status, 201);
+    const thirdBody = await thirdRes.json();
+    orderCId = thirdBody.order.id;
+    assert.notStrictEqual(orderCId, orderAId);
+    assert.notStrictEqual(orderCId, orderBId);
+    assert.strictEqual(thirdBody.order.status, "NEW");
+    assert.strictEqual(thirdBody.order.total_amount_minor, 4000);
+
+    // Verify all 3 orders on staff dashboard
+    const staffRes = await worker.fetch(
+      new Request("http://localhost/api/staff/orders", { headers: staffHeaders }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    const staffBody = await staffRes.json();
+    const t1 = staffBody.tables[0];
+    assert.strictEqual(t1.orders.length, 3);
+    const ordA = t1.orders.find((o: any) => o.id === orderAId);
+    const ordB = t1.orders.find((o: any) => o.id === orderBId);
+    const ordC = t1.orders.find((o: any) => o.id === orderCId);
+    assert.strictEqual(ordA.status, "ACCEPTED");
+    assert.strictEqual(ordB.status, "NEW");
+    assert.strictEqual(ordC.status, "NEW");
+  }
+
+  // -------------------------------------------------------------
+  // Scenario D: Multiple orders and independent acceptance
+  // Place Order D for Table 1 (total 4 orders). Accept Order B.
+  // -------------------------------------------------------------
+  console.log("✓ Scenario D: Table 1 has 4 orders; accepting Order B only changes Order B");
+  let orderDId: string;
+  {
+    const fourthRes = await worker.fetch(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        headers: customerHeaders1,
+        body: JSON.stringify({
+          items: [
+            { menuItemId: "item-paratha", quantity: 2 },
+            { menuItemId: "item-coke", quantity: 1 },
+            { menuItemId: "item-chai", quantity: 1 },
+          ],
+        }),
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    assert.strictEqual(fourthRes.status, 201);
+    orderDId = (await fourthRes.json()).order.id;
+
+    // Accept Order B
+    const acceptB = await worker.fetch(
+      new Request(`http://localhost/api/staff/orders/${orderBId}/status`, {
+        method: "POST",
+        headers: staffHeaders,
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    assert.strictEqual(acceptB.status, 200);
+
+    // Verify statuses
+    const staffRes = await worker.fetch(
+      new Request("http://localhost/api/staff/orders", { headers: staffHeaders }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    const staffBody = await staffRes.json();
+    const t1 = staffBody.tables[0];
+    assert.strictEqual(t1.orders.length, 4);
+    assert.strictEqual(t1.orders.find((o: any) => o.id === orderAId).status, "ACCEPTED");
+    assert.strictEqual(t1.orders.find((o: any) => o.id === orderBId).status, "ACCEPTED");
+    assert.strictEqual(t1.orders.find((o: any) => o.id === orderCId).status, "NEW");
+    assert.strictEqual(t1.orders.find((o: any) => o.id === orderDId).status, "NEW");
+  }
+
+  // -------------------------------------------------------------
+  // Scenario E: Item deletion
+  // -------------------------------------------------------------
+  console.log("✓ Scenario E: Item deletion for unavailable items");
+  {
+    // Order D has 3 items: Paratha (3990*2=7980), Coke (5000), Chai (4000). Total = 16980.
+    const orderDItems = sqlite
+      .prepare("SELECT * FROM order_items WHERE order_id = ?")
+      .all(orderDId) as any[];
+    assert.strictEqual(orderDItems.length, 3);
+    const chaiItem = orderDItems.find((i) => i.item_name_snapshot === "Masala Chai");
+    assert.ok(chaiItem);
+
+    // 1. Delete Masala Chai from Order D (status is NEW)
+    const delRes = await worker.fetch(
+      new Request(`http://localhost/api/staff/orders/${orderDId}/items/${chaiItem.id}`, {
+        method: "DELETE",
+        headers: staffHeaders,
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    assert.strictEqual(delRes.status, 200);
+    const delBody = await delRes.json();
+    assert.strictEqual(delBody.ok, true);
+    assert.strictEqual(delBody.deleted, false);
+    // Recalculated total: 16980 - 4000 = 12980
+    assert.strictEqual(delBody.order.total_amount_minor, 12980);
+    assert.strictEqual(delBody.order.items.length, 2);
+
+    // DB verification
+    const dbOrderD = sqlite.prepare("SELECT * FROM orders WHERE id = ?").get(orderDId) as any;
+    assert.strictEqual(dbOrderD.total_amount_minor, 12980);
+    const dbItemsD = sqlite.prepare("SELECT * FROM order_items WHERE order_id = ?").all(orderDId) as any[];
+    assert.strictEqual(dbItemsD.length, 2);
+    assert.strictEqual(dbItemsD.some((i) => i.id === chaiItem.id), false);
+
+    // 2. Reject deletion from ACCEPTED order (Order A)
+    const orderAItems = sqlite
+      .prepare("SELECT * FROM order_items WHERE order_id = ?")
+      .all(orderAId) as any[];
+    const rejectDel = await worker.fetch(
+      new Request(`http://localhost/api/staff/orders/${orderAId}/items/${orderAItems[0].id}`, {
+        method: "DELETE",
+        headers: staffHeaders,
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    assert.strictEqual(rejectDel.status, 400, "Deleting item from ACCEPTED order must be rejected");
+
+    // 3. Delete last remaining item resolves and removes empty order
+    // Order C has exactly 1 item (Chai).
+    const orderCItems = sqlite
+      .prepare("SELECT * FROM order_items WHERE order_id = ?")
+      .all(orderCId) as any[];
+    assert.strictEqual(orderCItems.length, 1);
+
+    const delLastRes = await worker.fetch(
+      new Request(`http://localhost/api/staff/orders/${orderCId}/items/${orderCItems[0].id}`, {
+        method: "DELETE",
+        headers: staffHeaders,
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    assert.strictEqual(delLastRes.status, 200);
+    const delLastBody = await delLastRes.json();
+    assert.strictEqual(delLastBody.ok, true);
+    assert.strictEqual(delLastBody.deleted, true);
+
+    // Verify Order C is completely removed from DB
+    const orderCRow = sqlite.prepare("SELECT * FROM orders WHERE id = ?").get(orderCId);
+    assert.strictEqual(orderCRow, undefined, "Empty order must be deleted");
+
+    // Verify staff active orders no longer includes Order C
+    const staffRes = await worker.fetch(
+      new Request("http://localhost/api/staff/orders", { headers: staffHeaders }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    const staffBody = await staffRes.json();
+    const t1 = staffBody.tables[0];
+    assert.strictEqual(t1.orders.some((o: any) => o.id === orderCId), false);
+  }
+
+  // -------------------------------------------------------------
+  // Scenario F: Table Prioritization & Sorting
+  // -------------------------------------------------------------
+  console.log("✓ Scenario F: Table prioritization and sorting");
+  {
+    // Place orders for Table 2 and Table 3
     const customerHeaders2 = {
       Authorization: `Bearer ${cs2Token}`,
       "Content-Type": "application/json",
     };
-
-    const res2 = await worker.fetch(
-      new Request("http://localhost/api/orders", {
-        method: "POST",
-        headers: customerHeaders2,
-        body: JSON.stringify({
-          items: [{ menuItemId: "item-chai", quantity: 1 }],
-        }),
-      }),
-      { DB: d1 } as any,
-      {} as any,
-    );
-
-    assert.strictEqual(res2.status, 201);
-    const body2 = await res2.json();
-    order2Id = body2.order.id;
-    assert.notStrictEqual(order2Id, order1Id, "Table 2 must get a separate Order ID");
-    assert.strictEqual(body2.order.status, "NEW");
-    assert.strictEqual(body2.order.total_amount_minor, 4000);
-
-    // Verify staff active orders shows both tables
-    const staffRes = await worker.fetch(
-      new Request("http://localhost/api/staff/orders", { headers: staffHeaders }),
-      { DB: d1 } as any,
-      {} as any,
-    );
-    const staffBody = await staffRes.json();
-    assert.strictEqual(staffBody.tables.length, 2);
-
-    const t1 = staffBody.tables.find((t: any) => t.tableName === "Table 1");
-    const t2 = staffBody.tables.find((t: any) => t.tableName === "Table 2");
-    assert.ok(t1 && t2);
-    assert.strictEqual(t1.orders[0].id, order1Id);
-    assert.strictEqual(t1.orders[0].status, "ACCEPTED");
-    assert.strictEqual(t2.orders[0].id, order2Id);
-    assert.strictEqual(t2.orders[0].status, "NEW");
-  }
-
-  // -------------------------------------------------------------
-  // Test 5: Table 3 places order and appends items while still NEW
-  // -------------------------------------------------------------
-  console.log("✓ Test 5: Table 3 places order and appends while still NEW -> Status stays NEW");
-  let order3Id: string;
-  {
     const customerHeaders3 = {
       Authorization: `Bearer ${cs3Token}`,
       "Content-Type": "application/json",
     };
-
-    // First item
-    const r1 = await worker.fetch(
-      new Request("http://localhost/api/orders", {
-        method: "POST",
-        headers: customerHeaders3,
-        body: JSON.stringify({
-          items: [{ menuItemId: "item-chai", quantity: 1 }],
-        }),
-      }),
-      { DB: d1 } as any,
-      {} as any,
-    );
-    const b1 = await r1.json();
-    order3Id = b1.order.id;
-    assert.strictEqual(b1.order.status, "NEW");
-
-    // Second item placed before staff accepts
-    const r2 = await worker.fetch(
-      new Request("http://localhost/api/orders", {
-        method: "POST",
-        headers: customerHeaders3,
-        body: JSON.stringify({
-          items: [{ menuItemId: "item-biryani", quantity: 1 }],
-        }),
-      }),
-      { DB: d1 } as any,
-      {} as any,
-    );
-    const b2 = await r2.json();
-    assert.strictEqual(b2.order.id, order3Id, "Same Order ID retained");
-    assert.strictEqual(b2.order.status, "NEW", "Status remains NEW");
-    assert.strictEqual(b2.order.items.length, 2);
-    assert.strictEqual(b2.order.total_amount_minor, 4000 + 18000);
-  }
-
-  // -------------------------------------------------------------
-  // Test 6: Numerical table sorting (Table 1, Table 2, Table 3, Table 10)
-  // -------------------------------------------------------------
-  console.log("✓ Test 6: Numerical table sorting (Table 1, Table 2, Table 3, Table 10)");
-  {
     const customerHeaders10 = {
       Authorization: `Bearer ${cs10Token}`,
       "Content-Type": "application/json",
@@ -404,9 +473,33 @@ async function runActiveOrdersTests() {
     await worker.fetch(
       new Request("http://localhost/api/orders", {
         method: "POST",
-        headers: customerHeaders10,
+        headers: customerHeaders2,
+        body: JSON.stringify({
+          items: [{ menuItemId: "item-biryani", quantity: 1 }],
+        }),
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+
+    await worker.fetch(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        headers: customerHeaders3,
         body: JSON.stringify({
           items: [{ menuItemId: "item-paratha", quantity: 1 }],
+        }),
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+
+    await worker.fetch(
+      new Request("http://localhost/api/orders", {
+        method: "POST",
+        headers: customerHeaders10,
+        body: JSON.stringify({
+          items: [{ menuItemId: "item-coke", quantity: 1 }],
         }),
       }),
       { DB: d1 } as any,
@@ -420,17 +513,26 @@ async function runActiveOrdersTests() {
     );
     const staffBody = await staffRes.json();
     assert.strictEqual(staffBody.tables.length, 4);
+
+    // Verify numerical table order: Table 1, Table 2, Table 3, Table 10
     const tableNames = staffBody.tables.map((t: any) => t.tableName);
     assert.deepStrictEqual(tableNames, ["Table 1", "Table 2", "Table 3", "Table 10"]);
+
+    // Verify each table has independent orders
+    const t1 = staffBody.tables.find((t: any) => t.tableName === "Table 1");
+    assert.strictEqual(t1.orders.length, 3); // A, B, D
+    const t2 = staffBody.tables.find((t: any) => t.tableName === "Table 2");
+    assert.strictEqual(t2.orders.length, 1);
   }
 
   // -------------------------------------------------------------
-  // Test 7: Closing an Active Order moves it to Order History
+  // Scenario G: Completion and sessions
+  // Completing Order A leaves Order B and D intact, keeps table session active
   // -------------------------------------------------------------
-  console.log("✓ Test 7: Completing Table 1 active order moves it to Order History");
+  console.log("✓ Scenario G: Complete Order A -> Preserves pending orders & active session");
   {
     const completeRes = await worker.fetch(
-      new Request(`http://localhost/api/staff/orders/${order1Id}/complete`, {
+      new Request(`http://localhost/api/staff/orders/${orderAId}/complete`, {
         method: "POST",
         headers: staffHeaders,
       }),
@@ -439,117 +541,62 @@ async function runActiveOrdersTests() {
     );
     assert.strictEqual(completeRes.status, 200);
     const completeBody = await completeRes.json();
-    assert.strictEqual(completeBody.ok, true);
     assert.strictEqual(completeBody.order.status, "SERVED");
 
-    // Table 1 must NO LONGER appear in active orders!
+    // Table 1 session MUST STILL BE ACTIVE!
+    const sessionRow = sqlite.prepare("SELECT * FROM table_sessions WHERE id = 'ts-1'").get() as any;
+    assert.strictEqual(
+      sessionRow.status,
+      "ACTIVE",
+      "Table session must remain ACTIVE so customer can continue ordering",
+    );
+
+    // Active orders for Table 1 still contains Order B and Order D!
     const staffRes = await worker.fetch(
       new Request("http://localhost/api/staff/orders", { headers: staffHeaders }),
       { DB: d1 } as any,
       {} as any,
     );
     const staffBody = await staffRes.json();
-    const hasTable1 = staffBody.tables.some((t: any) => t.tableName === "Table 1");
-    assert.strictEqual(hasTable1, false, "Table 1 must not appear in active orders after completion");
+    const t1 = staffBody.tables.find((t: any) => t.tableName === "Table 1");
+    assert.ok(t1, "Table 1 must still appear with active orders B and D");
+    assert.strictEqual(t1.orders.length, 2);
+    assert.strictEqual(t1.orders[0].id, orderBId);
+    assert.strictEqual(t1.orders[1].id, orderDId);
 
-    // Table 1 order must appear in Order History
+    // Order A is now in Order History
     const historyRes = await worker.fetch(
       new Request("http://localhost/api/staff/orders/history?limit=10", { headers: staffHeaders }),
       { DB: d1 } as any,
       {} as any,
     );
-    assert.strictEqual(historyRes.status, 200);
     const historyBody = await historyRes.json();
-    const historicalOrder = historyBody.orders.find((o: any) => o.id === order1Id);
-    assert.ok(historicalOrder, "Order #1 must be present in Order History");
-    assert.strictEqual(historicalOrder.status, "SERVED");
-    assert.strictEqual(historicalOrder.total_amount_minor, 26990);
-  }
+    const histA = historyBody.orders.find((o: any) => o.id === orderAId);
+    assert.ok(histA, "Completed Order A must appear in Order History");
+    assert.strictEqual(histA.status, "SERVED");
 
-  // -------------------------------------------------------------
-  // Test 8: Table 1 places a NEW order after previous order was closed
-  // Must generate a BRAND NEW Order ID and NOT touch historical order
-  // -------------------------------------------------------------
-  console.log("✓ Test 8: Table 1 places new order after closing -> Receives BRAND NEW Order ID");
-  {
-    // Open new session for Table 1
-    sqlite.exec(`
-      INSERT INTO table_sessions (id, table_id, status) VALUES ('ts-1-new', 'tbl-1', 'ACTIVE');
-    `);
-    const cs1NewToken = "customer-token-table-1-new";
-    const cs1NewHash = await sha256Hex(cs1NewToken);
-    sqlite.exec(`
-      INSERT INTO customer_sessions (id, table_session_id, session_token_hash, expires_at)
-      VALUES ('cs-1-new', 'ts-1-new', '${cs1NewHash}', '${futureIso}');
-    `);
-
-    const customerHeaders1New = {
-      Authorization: `Bearer ${cs1NewToken}`,
-      "Content-Type": "application/json",
-    };
-
-    const newOrderRes = await worker.fetch(
+    // Customer can continue placing orders under the same active session
+    const customerOrder5 = await worker.fetch(
       new Request("http://localhost/api/orders", {
         method: "POST",
-        headers: customerHeaders1New,
+        headers: customerHeaders1,
         body: JSON.stringify({
-          items: [{ menuItemId: "item-biryani", quantity: 2 }],
+          items: [{ menuItemId: "item-biryani", quantity: 1 }],
         }),
       }),
       { DB: d1 } as any,
       {} as any,
     );
-
-    assert.strictEqual(newOrderRes.status, 201);
-    const newOrderBody = await newOrderRes.json();
-    const newOrderId = newOrderBody.order.id;
-
-    // Must be a brand new Order ID
-    assert.notStrictEqual(
-      newOrderId,
-      order1Id,
-      "New order from Table 1 must receive a BRAND NEW Order ID",
-    );
-    assert.strictEqual(newOrderBody.order.status, "NEW");
-    assert.strictEqual(newOrderBody.order.total_amount_minor, 36000);
-
-    // Verify historical order1 in DB remains completely unchanged
-    const oldOrder = sqlite.prepare("SELECT * FROM orders WHERE id = ?").get(order1Id) as any;
-    assert.strictEqual(oldOrder.status, "SERVED");
-    assert.strictEqual(oldOrder.total_amount_minor, 26990);
-
-    // Active orders now shows Table 1 with the NEW Order ID
-    const staffRes = await worker.fetch(
-      new Request("http://localhost/api/staff/orders", { headers: staffHeaders }),
-      { DB: d1 } as any,
-      {} as any,
-    );
-    const staffBody = await staffRes.json();
-    const table1Group = staffBody.tables.find((t: any) => t.tableName === "Table 1");
-    assert.ok(table1Group);
-    assert.strictEqual(table1Group.orders.length, 1);
-    assert.strictEqual(table1Group.orders[0].id, newOrderId);
+    assert.strictEqual(customerOrder5.status, 201);
   }
 
   // -------------------------------------------------------------
-  // Test 9: Workflow is strictly NEW -> ACCEPTED (no transition after ACCEPTED)
+  // Scenario H: Status transitions and conflict checks
   // -------------------------------------------------------------
-  console.log("✓ Test 9: No transition after ACCEPTED (returns 409 conflict)");
+  console.log("✓ Scenario H: No transition after ACCEPTED (returns 409 conflict)");
   {
-    // Accept order2 (Table 2)
-    const acceptRes = await worker.fetch(
-      new Request(`http://localhost/api/staff/orders/${order2Id}/status`, {
-        method: "POST",
-        headers: staffHeaders,
-      }),
-      { DB: d1 } as any,
-      {} as any,
-    );
-    assert.strictEqual(acceptRes.status, 200);
-
-    // Try to advance order2 again
     const advanceAgain = await worker.fetch(
-      new Request(`http://localhost/api/staff/orders/${order2Id}/status`, {
+      new Request(`http://localhost/api/staff/orders/${orderBId}/status`, {
         method: "POST",
         headers: staffHeaders,
       }),
@@ -559,12 +606,12 @@ async function runActiveOrdersTests() {
     assert.strictEqual(
       advanceAgain.status,
       409,
-      "Advancing an ACCEPTED order must return 409 (final state reached)",
+      "Advancing an ACCEPTED order must return 409 conflict",
     );
   }
 
   console.log("\n=================================================");
-  console.log("ALL SINGLE ACTIVE ORDER PER TABLE TESTS PASSED!");
+  console.log("ALL MULTIPLE INDEPENDENT ORDERS TESTS PASSED CLEANLY!");
   console.log("=================================================");
 }
 
