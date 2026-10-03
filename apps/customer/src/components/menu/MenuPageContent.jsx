@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { getMenu } from "../../lib/menu";
 import { getCurrentFestivals } from "../../lib/festivals";
 import FestivalMenu from "./FestivalMenu";
 import MenuItemCard from "./MenuItemCard";
+import MenuSearch from "./MenuSearch";
+import MenuCategories from "./MenuCategories";
 import { BotanicalAccent } from "../customer/Icons";
 
 export default function MenuPageContent({
@@ -27,6 +29,13 @@ export default function MenuPageContent({
   const [festivalLoading, setFestivalLoading] =
     useState(true);
   const [error, setError] = useState("");
+
+  const [headerHeight, setHeaderHeight] = useState(60);
+  const [stickyBarHeight, setStickyBarHeight] = useState(100);
+
+  const stickyControlsRef = useRef(null);
+  const isManualScrollingRef = useRef(false);
+  const resetTimeoutRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -110,44 +119,286 @@ export default function MenuPageContent({
     };
   }, []);
 
-  const filteredItems = useMemo(() => {
-    const searchValue =
-      search.trim().toLowerCase();
+  // Measure sticky header height dynamically
+  useEffect(() => {
+    const header = document.querySelector("header");
+    if (!header) return;
 
-    return menu.items.filter((item) => {
-      const matchesCategory =
-        selectedCategory === "ALL" ||
-        item.category_id ===
-          selectedCategory ||
-        item.categoryId ===
-          selectedCategory;
-
-      if (!matchesCategory) {
-        return false;
+    const updateHeight = () => {
+      const h = header.getBoundingClientRect().height;
+      if (h > 0) {
+        setHeaderHeight(h);
+        document.documentElement.style.setProperty(
+          "--customer-header-height",
+          `${h}px`,
+        );
       }
+    };
 
-      if (!searchValue) {
-        return true;
+    updateHeight();
+
+    const ro = new ResizeObserver(updateHeight);
+    ro.observe(header);
+    window.addEventListener("resize", updateHeight);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", updateHeight);
+    };
+  }, []);
+
+  // Measure sticky search & category controls container height dynamically
+  useEffect(() => {
+    if (!stickyControlsRef.current) return;
+
+    const updateBarHeight = () => {
+      const h =
+        stickyControlsRef.current?.getBoundingClientRect().height || 0;
+      if (h > 0) {
+        setStickyBarHeight(h);
       }
+    };
 
-      const name = String(
-        item.name || "",
-      ).toLowerCase();
+    updateBarHeight();
 
-      const description = String(
-        item.description || "",
-      ).toLowerCase();
+    const ro = new ResizeObserver(updateBarHeight);
+    ro.observe(stickyControlsRef.current);
 
+    return () => {
+      ro.disconnect();
+    };
+  }, []);
+
+  const totalStickyOffset = headerHeight + stickyBarHeight;
+
+  // Group items by category while preserving order and full item data
+  const categorizedData = useMemo(() => {
+    const searchValue = search.trim().toLowerCase();
+
+    // 1. Filter items matching search
+    const matchingItems = menu.items.filter((item) => {
+      if (!searchValue) return true;
+      const name = String(item.name || "").toLowerCase();
+      const description = String(item.description || "").toLowerCase();
       return (
         name.includes(searchValue) ||
         description.includes(searchValue)
       );
     });
-  }, [
-    menu.items,
-    search,
-    selectedCategory,
-  ]);
+
+    // 2. Map items by category ID preserving original categories order
+    const itemsByCategoryId = new Map();
+    for (const cat of menu.categories) {
+      itemsByCategoryId.set(String(cat.id), []);
+    }
+
+    const uncategorizedItems = [];
+
+    for (const item of matchingItems) {
+      const catId = item.category_id ?? item.categoryId;
+      const catIdStr = catId != null ? String(catId) : null;
+      if (catIdStr && itemsByCategoryId.has(catIdStr)) {
+        itemsByCategoryId.get(catIdStr).push(item);
+      } else {
+        uncategorizedItems.push(item);
+      }
+    }
+
+    // 3. Build sections only for categories with at least 1 item
+    const sections = [];
+    for (const cat of menu.categories) {
+      const items = itemsByCategoryId.get(String(cat.id)) || [];
+      if (items.length > 0) {
+        sections.push({
+          id: String(cat.id),
+          name: cat.name,
+          items,
+        });
+      }
+    }
+
+    // 4. Safely include uncategorized items if any exist
+    if (uncategorizedItems.length > 0) {
+      sections.push({
+        id: "uncategorized",
+        name: "Other Items",
+        items: uncategorizedItems,
+      });
+    }
+
+    return {
+      matchingItems,
+      sections,
+    };
+  }, [menu.categories, menu.items, search]);
+
+  // Derive categories for navigation pills
+  const displayCategories = useMemo(() => {
+    if (search.trim()) {
+      return categorizedData.sections.map((s) => ({
+        id: s.id,
+        name: s.name,
+      }));
+    }
+
+    const categoryIdsWithItems = new Set(
+      categorizedData.sections.map((s) => s.id),
+    );
+
+    const result = menu.categories
+      .filter((cat) => categoryIdsWithItems.has(String(cat.id)))
+      .map((cat) => ({ id: String(cat.id), name: cat.name }));
+
+    if (categoryIdsWithItems.has("uncategorized")) {
+      result.push({ id: "uncategorized", name: "Other Items" });
+    }
+
+    return result;
+  }, [categorizedData.sections, menu.categories, search]);
+
+  // If active category is no longer present (e.g. after search), fallback to ALL
+  useEffect(() => {
+    if (selectedCategory === "ALL") return;
+    const exists = displayCategories.some(
+      (cat) => cat.id === selectedCategory,
+    );
+    if (!exists) {
+      setSelectedCategory("ALL");
+    }
+  }, [displayCategories, selectedCategory]);
+
+  const resetManualScrollAfterDelay = () => {
+    if (resetTimeoutRef.current) {
+      clearTimeout(resetTimeoutRef.current);
+    }
+    resetTimeoutRef.current = setTimeout(() => {
+      isManualScrollingRef.current = false;
+    }, 800);
+  };
+
+  // Coordinated category click handler
+  const handleCategoryClick = (categoryId) => {
+    setSelectedCategory(categoryId);
+    isManualScrollingRef.current = true;
+
+    if (categoryId === "ALL") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      resetManualScrollAfterDelay();
+      return;
+    }
+
+    const target = document.getElementById(`menu-category-${categoryId}`);
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      resetManualScrollAfterDelay();
+    }
+  };
+
+  // Unset manual scroll lock on scroll end or user interrupt
+  useEffect(() => {
+    const handleScrollEnd = () => {
+      isManualScrollingRef.current = false;
+    };
+
+    const handleUserInterrupt = () => {
+      isManualScrollingRef.current = false;
+    };
+
+    window.addEventListener("scrollend", handleScrollEnd, { passive: true });
+    window.addEventListener("wheel", handleUserInterrupt, { passive: true });
+    window.addEventListener("touchstart", handleUserInterrupt, { passive: true });
+
+    return () => {
+      window.removeEventListener("scrollend", handleScrollEnd);
+      window.removeEventListener("wheel", handleUserInterrupt);
+      window.removeEventListener("touchstart", handleUserInterrupt);
+      if (resetTimeoutRef.current) {
+        clearTimeout(resetTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Automatic active category detection while scrolling
+  useEffect(() => {
+    const sections = categorizedData.sections;
+    if (sections.length === 0) return;
+
+    let ticking = false;
+
+    const checkActiveCategory = () => {
+      if (isManualScrollingRef.current) return;
+
+      const totalOffset = headerHeight + stickyBarHeight;
+
+      // 1. Bottom of page check: if scrolled to the very bottom
+      const atBottom =
+        window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight - 30;
+
+      if (atBottom) {
+        const lastSection = sections[sections.length - 1];
+        if (lastSection) {
+          setSelectedCategory(lastSection.id);
+          return;
+        }
+      }
+
+      // 2. Top of page check: if scrolled above or near the first section
+      const firstEl = document.getElementById(
+        `menu-category-${sections[0].id}`,
+      );
+      if (firstEl) {
+        const firstTop = firstEl.getBoundingClientRect().top;
+        if (firstTop > totalOffset + 80) {
+          setSelectedCategory("ALL");
+          return;
+        }
+      }
+
+      // 3. Scan sections from top to bottom
+      // The reading line is slightly below the sticky controls bar
+      const readingLine = totalOffset + 40;
+      let currentId = sections[0].id;
+
+      for (let i = 0; i < sections.length; i++) {
+        const s = sections[i];
+        const el = document.getElementById(`menu-category-${s.id}`);
+        if (!el) continue;
+
+        const rect = el.getBoundingClientRect();
+        if (rect.top <= readingLine) {
+          currentId = s.id;
+        } else {
+          break;
+        }
+      }
+
+      setSelectedCategory(currentId);
+    };
+
+    const handleScroll = () => {
+      if (isManualScrollingRef.current) return;
+
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          checkActiveCategory();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll, { passive: true });
+
+    // Initial check
+    checkActiveCategory();
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, [categorizedData.sections, headerHeight, stickyBarHeight]);
 
   function handleRegularAdd(item) {
     if (!orderingEnabled) {
@@ -239,86 +490,35 @@ export default function MenuPageContent({
         />
       ) : null}
 
-      <section className="px-4 py-6 sm:px-6">
-        <div className="mx-auto max-w-6xl">
+      {/* Sticky Search & Category Navigation Bar */}
+      <div
+        ref={stickyControlsRef}
+        style={{ top: `${headerHeight}px` }}
+        className="sticky z-20 bg-cream-soft/95 backdrop-blur-md border-b border-stone/30 shadow-xs transition-all"
+      >
+        <div className="mx-auto max-w-6xl px-4 py-2.5 sm:px-6">
           {/* Menu Search Bar */}
-          <div className="mb-6">
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-stone-600">
-                <svg className="h-4 w-4 text-charcoal-deep/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-              </div>
-
-              <input
-                id="menu-search"
-                type="search"
-                value={search}
-                onChange={(event) =>
-                  setSearch(event.target.value)
-                }
-                placeholder="Search dishes, drinks, specials..."
-                className="w-full rounded-2xl border border-stone/60 bg-white pl-10 pr-10 py-3 text-sm text-charcoal-deep outline-none transition placeholder:text-charcoal-deep/40 focus:border-amber-warm focus:ring-2 focus:ring-amber-warm/20 shadow-sm"
-              />
-
-              {search ? (
-                <button
-                  type="button"
-                  onClick={() => setSearch("")}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-xs text-charcoal-deep/40 hover:text-charcoal-deep"
-                >
-                  Clear
-                </button>
-              ) : null}
-            </div>
+          <div className="mb-2">
+            <MenuSearch
+              value={search}
+              onChange={setSearch}
+              onClear={() => setSearch("")}
+            />
           </div>
 
-          {/* Category Filter Pills */}
-          {menu.categories.length > 0 ? (
-            <div className="mb-6 flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-              <button
-                type="button"
-                onClick={() =>
-                  setSelectedCategory("ALL")
-                }
-                className={[
-                  "shrink-0 rounded-full px-4 py-2 text-xs sm:text-sm font-semibold transition-all shadow-sm",
-                  selectedCategory === "ALL"
-                    ? "bg-charcoal-deep text-amber-light ring-1 ring-amber-warm/30 shadow-md"
-                    : "bg-white text-charcoal-deep/80 border border-stone/50 hover:bg-cream-warm hover:text-charcoal-deep",
-                ].join(" ")}
-              >
-                All Items
-              </button>
+          {/* Category Navigation Pills */}
+          <MenuCategories
+            categories={displayCategories}
+            activeCategory={selectedCategory}
+            onCategoryClick={handleCategoryClick}
+          />
+        </div>
+      </div>
 
-              {menu.categories.map((category) => {
-                const categoryId = category.id;
-                const active = selectedCategory === categoryId;
-
-                return (
-                  <button
-                    key={categoryId}
-                    type="button"
-                    onClick={() =>
-                      setSelectedCategory(categoryId)
-                    }
-                    className={[
-                      "shrink-0 rounded-full px-4 py-2 text-xs sm:text-sm font-semibold transition-all shadow-sm",
-                      active
-                        ? "bg-charcoal-deep text-amber-light ring-1 ring-amber-warm/30 shadow-md"
-                        : "bg-white text-charcoal-deep/80 border border-stone/50 hover:bg-cream-warm hover:text-charcoal-deep",
-                    ].join(" ")}
-                  >
-                    {category.name}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
-
-          {/* Items Grid or Empty State */}
-          {filteredItems.length === 0 ? (
+      <section className="px-4 py-6 sm:px-6">
+        <div className="mx-auto max-w-6xl">
+          {/* Items by Category Sections or Empty State */}
+          {categorizedData.matchingItems.length === 0 ? (
             <div className="rounded-3xl border border-stone/50 bg-white px-6 py-14 text-center shadow-sm">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-cream-warm text-amber-gold">
                 <BotanicalAccent className="h-6 w-6 text-forest" />
@@ -342,17 +542,40 @@ export default function MenuPageContent({
               )}
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
-              {filteredItems.map((item) => (
-                <MenuItemCard
-                  key={item.id}
-                  item={item}
-                  onClick={
-                    orderingEnabled
-                      ? () => handleRegularAdd(item)
-                      : undefined
-                  }
-                />
+            <div className="space-y-10">
+              {categorizedData.sections.map((section) => (
+                <section
+                  key={section.id}
+                  id={`menu-category-${section.id}`}
+                  style={{ scrollMarginTop: `${totalStickyOffset + 16}px` }}
+                  className="pt-2"
+                >
+                  <div className="mb-4 flex items-center justify-between border-b border-stone/30 pb-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <span className="h-2 w-2 rounded-full bg-amber-warm" />
+                      <h2 className="text-lg sm:text-xl font-bold font-serif text-charcoal-deep tracking-tight">
+                        {section.name}
+                      </h2>
+                    </div>
+                    <span className="text-[11px] font-semibold text-charcoal-deep/60 rounded-full bg-cream-warm px-2.5 py-0.5 border border-stone/40">
+                      {section.items.length} {section.items.length === 1 ? "item" : "items"}
+                    </span>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+                    {section.items.map((item) => (
+                      <MenuItemCard
+                        key={item.id}
+                        item={item}
+                        onClick={
+                          orderingEnabled
+                            ? () => handleRegularAdd(item)
+                            : undefined
+                        }
+                      />
+                    ))}
+                  </div>
+                </section>
               ))}
             </div>
           )}
@@ -361,3 +584,4 @@ export default function MenuPageContent({
     </div>
   );
 }
+
