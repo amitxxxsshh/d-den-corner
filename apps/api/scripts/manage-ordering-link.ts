@@ -14,7 +14,7 @@ const wranglerCli = require.resolve("wrangler", { paths: [API_DIR] });
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  let isRemote = false;
+  let isRemote = true;
   let isList = false;
   let tableQuery: string | null = null;
   let customOrigin: string | null = null;
@@ -22,7 +22,9 @@ function parseArgs() {
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg === "--remote" || arg === "-r") {
+    if (arg === "--local") {
+      isRemote = false;
+    } else if (arg === "--remote" || arg === "-r") {
       isRemote = true;
     } else if (arg === "--list" || arg === "-l") {
       isList = true;
@@ -95,7 +97,8 @@ Usage:
 
 Options:
   --list, -l           List all tables, current session status, and QR link status
-  --remote, -r         Execute against remote Cloudflare D1 database (default: local)
+  --remote, -r         Execute against remote Cloudflare D1 database (default)
+  --local              Execute against local Cloudflare D1 database
   --origin <url>       Specify customer origin URL (default: http://localhost:3000)
   --help, -h           Show this help message
 

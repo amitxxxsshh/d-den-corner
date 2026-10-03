@@ -25,6 +25,17 @@ const app = new Hono<{
   Bindings: Bindings;
 }>();
 
+app.onError((err, c) => {
+  console.error(`[API ERROR] ${c.req.method} ${c.req.path}:`, err);
+  return c.json(
+    {
+      ok: false,
+      message: err.message || "Internal server error",
+    },
+    500,
+  );
+});
+
 app.use("/api/*", async (c, next) => {
   const allowedOrigins = [
     c.env.CUSTOMER_ORIGIN ||

@@ -2,7 +2,7 @@
   "name": "@d-den-corner/api",
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "wrangler dev --remote",
     "dev:local": "wrangler dev",
     "dev:remote": "wrangler dev --remote",
     "deploy": "wrangler deploy --minify",

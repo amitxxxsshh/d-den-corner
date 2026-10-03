@@ -78,10 +78,12 @@ staffAuthRoutes.post(
   "/login",
   async (c) => {
     const body =
-      await c.req.json<{
-        email?: string;
-        password?: string;
-      }>();
+      await c.req
+        .json<{
+          email?: string;
+          password?: string;
+        }>()
+        .catch(() => ({} as { email?: string; password?: string }));
 
     const email =
       typeof body.email === "string"
