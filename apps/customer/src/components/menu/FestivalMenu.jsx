@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { SunflowerMotif, BotanicalAccent } from "../customer/Icons";
 
 function formatPrice(amountMinor) {
   return new Intl.NumberFormat("en-IN", {
@@ -35,26 +34,13 @@ export default function FestivalMenu({
       <div className="pointer-events-none absolute bottom-0 left-0 h-48 w-48 rounded-full bg-forest-dark/30 blur-2xl" />
 
       <div className="relative mx-auto max-w-6xl">
-        <div className="mb-6">
-          <div className="flex items-center gap-2 text-amber-light">
-            <SunflowerMotif className="w-4 h-4 text-amber-warm" />
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em]">
-              Special Seasonal Celebration
-            </p>
-          </div>
+       <div className="mb-6">
+       <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-cream-soft font-serif">
+         Special Menu
+       </h2>
+      </div>
 
-          <h2 className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-cream-soft font-serif">
-            Festival Specials
-          </h2>
-
-          {festival?.description ? (
-            <p className="mt-2 max-w-2xl text-xs sm:text-sm text-stone leading-relaxed">
-              {festival.description}
-            </p>
-          ) : null}
-        </div>
-
-        {/* Festival Tabs (if multiple) */}
+        {/* Festival Tabs (if multiple) */} 
         {festivals.length > 1 ? (
           <div className="mb-6 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
             {festivals.map((item) => {
@@ -85,12 +71,6 @@ export default function FestivalMenu({
           <div className="space-y-7">
             {festival.specialMenus.map((specialMenu) => (
               <div key={specialMenu.id}>
-                <div className="mb-3.5 flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-warm" />
-                  <h3 className="text-base font-bold text-cream-soft font-serif">
-                    {specialMenu.name}
-                  </h3>
-                </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {Array.isArray(specialMenu.items)
@@ -123,10 +103,6 @@ export default function FestivalMenu({
                                     </p>
                                   ) : null}
                                 </div>
-
-                                <span className="shrink-0 rounded-full bg-amber-warm/20 border border-amber-warm/40 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-amber-gold">
-                                  Festival
-                                </span>
                               </div>
                             </div>
 
