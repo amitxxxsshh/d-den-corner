@@ -12,6 +12,7 @@
     "dev:api:local": "pnpm --filter @d-den-corner/api dev:local",
     "dev:api:remote": "pnpm --filter @d-den-corner/api dev:remote",
     "table:link": "pnpm --filter @d-den-corner/api table:link",
+    "menu:seed": "pnpm --filter @d-den-corner/api menu:seed",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",

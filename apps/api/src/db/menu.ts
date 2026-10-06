@@ -190,19 +190,21 @@ export async function getAvailableMenuItems(
     db,
     `
       SELECT
-        id,
-        category_id,
-        name,
-        description,
-        price_minor,
-        available,
-        archived,
-        created_at,
-        updated_at
-      FROM menu_items
-      WHERE available = 1
-        AND archived = 0
-      ORDER BY name ASC
+        mi.id,
+        mi.category_id,
+        mi.name,
+        mi.description,
+        mi.price_minor,
+        mi.available,
+        mi.archived,
+        mi.created_at,
+        mi.updated_at
+      FROM menu_items mi
+      INNER JOIN menu_categories mc ON mi.category_id = mc.id
+      WHERE mi.available = 1
+        AND mi.archived = 0
+        AND mc.active = 1
+      ORDER BY mi.rowid ASC
     `
   );
 }
@@ -261,20 +263,22 @@ export async function getAvailableMenuItemsByCategory(
     db,
     `
       SELECT
-        id,
-        category_id,
-        name,
-        description,
-        price_minor,
-        available,
-        archived,
-        created_at,
-        updated_at
-      FROM menu_items
-      WHERE category_id = ?
-        AND available = 1
-        AND archived = 0
-      ORDER BY name ASC
+        mi.id,
+        mi.category_id,
+        mi.name,
+        mi.description,
+        mi.price_minor,
+        mi.available,
+        mi.archived,
+        mi.created_at,
+        mi.updated_at
+      FROM menu_items mi
+      INNER JOIN menu_categories mc ON mi.category_id = mc.id
+      WHERE mi.category_id = ?
+        AND mi.available = 1
+        AND mi.archived = 0
+        AND mc.active = 1
+      ORDER BY mi.rowid ASC
     `,
     categoryId
   );

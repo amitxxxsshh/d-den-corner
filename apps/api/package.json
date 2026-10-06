@@ -7,9 +7,10 @@
     "dev:remote": "wrangler dev --remote",
     "deploy": "wrangler deploy --minify",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
-    "test": "tsx test/dashboard.test.ts && tsx test/active-orders.test.ts && tsx test/table-ordering-link.test.ts",
+    "test": "tsx test/dashboard.test.ts && tsx test/active-orders.test.ts && tsx test/table-ordering-link.test.ts && tsx test/menu-catalog.test.ts",
     "typecheck": "tsc --noEmit",
-    "table:link": "tsx scripts/manage-ordering-link.ts"
+    "table:link": "tsx scripts/manage-ordering-link.ts",
+    "menu:seed": "tsx scripts/seed-menu.ts"
   },
   "dependencies": {
     "hono": "^4.13.9"
