@@ -14,6 +14,29 @@ import CartDrawer from "../../components/cart/CartDrawer";
 import { useCart } from "../../components/cart/CartContext";
 import { useCustomerSession } from "../../components/customer/CustomerSessionContext";
 
+function CustomerMenuBackground() {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none fixed inset-0 z-0 overflow-hidden select-none"
+    >
+      <picture>
+        <source
+          media="(min-width: 768px)"
+          srcSet="/images/customer/d-den-corner-menu-bg-desktop.webp"
+        />
+        <img
+          src="/images/customer/d-den-corner-menu-bg-mobile.webp"
+          alt=""
+          className="h-full w-full object-cover object-center"
+        />
+      </picture>
+      {/* Subtle readability overlay so background is visible while preserving foreground legibility */}
+      <div className="absolute inset-0 bg-cream-soft/20 pointer-events-none" />
+    </div>
+  );
+}
+
 function MenuPageWithSearchParams() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
@@ -45,10 +68,11 @@ function MenuPageWithSearchParams() {
    */
   if (status === "loading") {
     return (
-      <main className="min-h-screen bg-cream-soft flex flex-col">
+      <main className="relative min-h-screen text-charcoal-deep flex flex-col">
+        <CustomerMenuBackground />
         <CustomerHeader subtitle="MENU" />
-        <div className="flex flex-1 items-center justify-center px-6 py-16">
-          <div className="text-center">
+        <div className="relative z-10 flex flex-1 items-center justify-center px-6 py-16">
+          <div className="text-center rounded-3xl bg-cream-soft/90 backdrop-blur-md p-8 border border-stone/30 shadow-sm">
             <div className="relative mx-auto flex h-12 w-12 items-center justify-center">
               <div className="absolute inset-0 rounded-full border-2 border-stone/30" />
               <div className="h-10 w-10 animate-spin rounded-full border-2 border-transparent border-t-amber-warm" />
@@ -79,7 +103,9 @@ function MenuPageWithSearchParams() {
   }
 
   return (
-    <div className="min-h-screen bg-cream-soft text-charcoal-deep flex flex-col">
+    <div className="relative min-h-screen text-charcoal-deep flex flex-col">
+      <CustomerMenuBackground />
+
       {/* Exactly ONE Responsive Navbar */}
       <CustomerHeader subtitle={orderingEnabled ? "TABLE ORDERING" : "EXPLORE MENU"} />
 
@@ -115,10 +141,11 @@ function MenuPageWithSearchParams() {
 
 function MenuPageFallback() {
   return (
-    <main className="min-h-screen bg-cream-soft flex flex-col">
+    <main className="relative min-h-screen text-charcoal-deep flex flex-col">
+      <CustomerMenuBackground />
       <CustomerHeader subtitle="MENU" />
-      <div className="flex flex-1 items-center justify-center px-6 py-16">
-        <div className="text-center">
+      <div className="relative z-10 flex flex-1 items-center justify-center px-6 py-16">
+        <div className="text-center rounded-3xl bg-cream-soft/90 backdrop-blur-md p-8 border border-stone/30 shadow-sm">
           <div className="relative mx-auto flex h-12 w-12 items-center justify-center">
             <div className="absolute inset-0 rounded-full border-2 border-stone/30" />
             <div className="h-10 w-10 animate-spin rounded-full border-2 border-transparent border-t-amber-warm" />

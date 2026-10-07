@@ -14,9 +14,9 @@ export default function MenuSearch({
         Search dishes, drinks, specials
       </label>
 
-      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-stone-600">
+      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
         <svg
-          className="h-4 w-4 text-charcoal-deep/50"
+          className="h-4 w-4 text-stone/75"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -35,7 +35,7 @@ export default function MenuSearch({
         onChange={(event) => onChange(event.target.value)}
         placeholder="Search dishes, drinks, specials..."
         autoComplete="off"
-        className="w-full rounded-2xl border border-stone/60 bg-white pl-10 pr-12 py-2.5 sm:py-3 text-sm text-charcoal-deep outline-none transition placeholder:text-charcoal-deep/40 focus:border-amber-warm focus:ring-2 focus:ring-amber-warm/20 shadow-sm"
+        className="w-full rounded-full border border-white/20 bg-charcoal-black/50 backdrop-blur-md pl-11 pr-14 py-2.5 sm:py-3 text-sm font-medium text-cream-soft outline-none transition placeholder:text-stone/60 hover:bg-charcoal-black/60 hover:border-white/30 focus:border-amber-warm/80 focus:bg-charcoal-black/65 focus:ring-2 focus:ring-amber-warm/30 focus:shadow-[0_0_15px_rgba(216,154,58,0.25)] shadow-sm [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
       />
 
       {value ? (
@@ -43,7 +43,7 @@ export default function MenuSearch({
           type="button"
           onClick={onClear}
           aria-label="Clear search"
-          className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-xs font-semibold text-charcoal-deep/50 hover:text-charcoal-deep transition"
+          className="absolute inset-y-0 right-0 flex items-center pr-4 text-xs font-semibold text-stone/80 hover:text-cream-soft transition"
         >
           Clear
         </button>

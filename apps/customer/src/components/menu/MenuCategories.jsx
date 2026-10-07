@@ -59,10 +59,10 @@ export default function MenuCategories({
         type="button"
         onClick={() => handleClick?.("ALL")}
         className={[
-          "shrink-0 rounded-full px-3.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-all shadow-sm",
+          "shrink-0 rounded-full px-3.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-all",
           isAllActive
-            ? "bg-charcoal-deep text-amber-light ring-1 ring-amber-warm/30 shadow-md"
-            : "bg-white text-charcoal-deep/80 border border-stone/50 hover:bg-cream-warm hover:text-charcoal-deep",
+            ? "bg-amber-warm text-charcoal-black font-bold border border-amber-light/80 ring-2 ring-amber-warm/30 shadow-md amber-glow"
+            : "bg-charcoal-black/50 backdrop-blur-md text-stone/90 border border-white/15 hover:bg-charcoal-black/70 hover:text-cream-soft hover:border-white/25 shadow-xs",
         ].join(" ")}
       >
         All Items
@@ -81,10 +81,10 @@ export default function MenuCategories({
             type="button"
             onClick={() => handleClick?.(categoryId)}
             className={[
-              "shrink-0 rounded-full px-3.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-all shadow-sm",
+              "shrink-0 rounded-full px-3.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-all",
               active
-                ? "bg-charcoal-deep text-amber-light ring-1 ring-amber-warm/30 shadow-md"
-                : "bg-white text-charcoal-deep/80 border border-stone/50 hover:bg-cream-warm hover:text-charcoal-deep",
+                ? "bg-amber-warm text-charcoal-black font-bold border border-amber-light/80 ring-2 ring-amber-warm/30 shadow-md amber-glow"
+                : "bg-charcoal-black/50 backdrop-blur-md text-stone/90 border border-white/15 hover:bg-charcoal-black/70 hover:text-cream-soft hover:border-white/25 shadow-xs",
             ].join(" ")}
           >
             {category.name}

@@ -18,7 +18,7 @@ export default function CustomerHeader({
   const isOrders = pathname?.startsWith("/orders");
 
   return (
-    <header className="sticky top-0 z-30 bg-charcoal-deep/95 border-b border-forest-dark/40 backdrop-blur-md transition-all">
+    <header className="sticky top-0 z-30 bg-charcoal-black/65 backdrop-blur-md border-b border-white/10 shadow-sm transition-all">
       <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
         <div className="flex items-center justify-between gap-3 sm:gap-6">
           {/* Brand Logo & Title */}
@@ -38,8 +38,8 @@ export default function CustomerHeader({
               href="/menu"
               className={`relative px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                 isMenu
-                  ? "text-amber-light font-semibold bg-forest-dark/40 shadow-sm"
-                  : "text-stone hover:text-cream-soft hover:bg-charcoal-green/50"
+                  ? "text-amber-light font-semibold bg-charcoal-black/40 shadow-xs border border-white/10"
+                  : "text-stone hover:text-cream-soft hover:bg-white/5"
               }`}
             >
               Menu
@@ -52,8 +52,8 @@ export default function CustomerHeader({
               href="/orders"
               className={`relative px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                 isOrders
-                  ? "text-amber-light font-semibold bg-forest-dark/40 shadow-sm"
-                  : "text-stone hover:text-cream-soft hover:bg-charcoal-green/50"
+                  ? "text-amber-light font-semibold bg-charcoal-black/40 shadow-xs border border-white/10"
+                  : "text-stone hover:text-cream-soft hover:bg-white/5"
               }`}
             >
               Orders
@@ -75,7 +75,7 @@ export default function CustomerHeader({
       </div>
 
       {/* Subtle Black-and-Cream Geometric Checker Accent Line */}
-      <div className="checker-strip-subtle opacity-40 w-full" />
+      <div className="checker-strip-subtle opacity-25 w-full" />
     </header>
   );
 }

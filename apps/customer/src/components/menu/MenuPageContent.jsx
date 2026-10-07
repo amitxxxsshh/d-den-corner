@@ -436,8 +436,8 @@ export default function MenuPageContent({
 
   if (loading) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center px-6 py-20">
-        <div className="text-center">
+      <div className="relative z-10 flex min-h-[400px] items-center justify-center px-6 py-20">
+        <div className="text-center rounded-3xl bg-cream-soft/90 backdrop-blur-md p-8 border border-stone/30 shadow-sm">
           <div className="relative mx-auto flex h-12 w-12 items-center justify-center">
             <div className="absolute inset-0 rounded-full border-2 border-stone/40" />
             <div className="h-10 w-10 animate-spin rounded-full border-2 border-transparent border-t-amber-warm" />
@@ -454,8 +454,8 @@ export default function MenuPageContent({
 
   if (error) {
     return (
-      <div className="px-6 py-12">
-        <div className="mx-auto max-w-xl rounded-3xl border border-terracotta/30 bg-cream-soft p-6 sm:p-8 text-center shadow-sm">
+      <div className="relative z-10 px-6 py-12">
+        <div className="mx-auto max-w-xl rounded-3xl border border-terracotta/30 bg-cream-soft/95 backdrop-blur-md p-6 sm:p-8 text-center shadow-sm">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-terracotta/15 text-terracotta">
             <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
@@ -477,7 +477,7 @@ export default function MenuPageContent({
   }
 
   return (
-    <div className="flex-1 pb-24">
+    <div className="relative z-10 flex-1 pb-24">
       {/* Festival Specials Banner (if present) */}
       {!festivalLoading && festivals.length > 0 ? (
         <FestivalMenu
@@ -494,7 +494,7 @@ export default function MenuPageContent({
       <div
         ref={stickyControlsRef}
         style={{ top: `${headerHeight}px` }}
-        className="sticky z-20 bg-cream-soft/95 backdrop-blur-md border-b border-stone/30 shadow-xs transition-all"
+        className="sticky z-20 bg-charcoal-black/45 backdrop-blur-md border-b border-white/10 shadow-xs transition-all"
       >
         <div className="mx-auto max-w-6xl px-4 py-2.5 sm:px-6">
           {/* Menu Search Bar */}

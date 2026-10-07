@@ -29,7 +29,7 @@ export default function FestivalMenu({
     ) || festivals[0];
 
   return (
-    <section className="relative overflow-hidden bg-charcoal-deep text-cream-soft border-b border-amber-warm/30 px-4 py-8 sm:px-6">
+    <section className="relative overflow-hidden bg-charcoal-deep/85 backdrop-blur-md text-cream-soft border-b border-amber-warm/30 px-4 py-8 sm:px-6">
       {/* Subtle festive amber glow in background */}
       <div className="pointer-events-none absolute -top-16 right-0 h-64 w-64 rounded-full bg-amber-warm/15 blur-3xl" />
       <div className="pointer-events-none absolute bottom-0 left-0 h-48 w-48 rounded-full bg-forest-dark/30 blur-2xl" />
