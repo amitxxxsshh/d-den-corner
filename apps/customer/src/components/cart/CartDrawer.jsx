@@ -1,47 +1,100 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import CartItem from "./CartItem";
 import { useCart } from "./CartContext";
+import { useCustomerSession } from "../customer/CustomerSessionContext";
+import { createOrder } from "../../lib/orders";
 import { formatCartPrice } from "../../lib/cart";
 import { BotanicalAccent } from "../customer/Icons";
 
 export default function CartDrawer({
   open,
   onClose,
-  onCheckout,
 }) {
   const router = useRouter();
+  const { isAuthenticated } = useCustomerSession();
 
   const {
     items,
     subtotalMinor,
+    clearCart,
   } = useCart();
+
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   if (!open) {
     return null;
   }
 
-  function handleCheckout() {
-    if (items.length === 0) {
+  function handleClose() {
+    if (submitting) {
       return;
     }
-
+    setError("");
     onClose();
+  }
 
-    if (onCheckout) {
-      onCheckout();
+  async function handleSendOrder() {
+    if (!isAuthenticated) {
+      setError(
+        "You must connect to a table using your table's QR link before placing an order.",
+      );
       return;
     }
 
-    router.push("/checkout");
+    if (!Array.isArray(items) || items.length === 0) {
+      setError("Your cart is empty.");
+      return;
+    }
+
+    if (submitting) {
+      return;
+    }
+
+    setSubmitting(true);
+    setError("");
+
+    try {
+      const response = await createOrder(items);
+
+      const orderId =
+        response?.order?.id ||
+        response?.id;
+
+      if (!orderId) {
+        throw new Error(
+          "Order was created, but no order ID was returned.",
+        );
+      }
+
+      clearCart();
+      setError("");
+      onClose();
+
+      router.push(
+        `/order-confirmation?orderId=${encodeURIComponent(
+          orderId,
+        )}`,
+      );
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Unable to place your order. Please try again.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-charcoal-black/75 backdrop-blur-sm animate-in fade-in duration-200"
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         className="flex max-h-[88vh] w-full max-w-lg flex-col rounded-t-3xl sm:rounded-3xl border border-stone/40 bg-cream-soft text-charcoal-deep shadow-2xl transition-all"
@@ -66,8 +119,9 @@ export default function CartDrawer({
 
           <button
             type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white border border-stone/50 text-sm font-bold text-charcoal-deep/70 hover:bg-cream-warm hover:text-charcoal-deep transition"
+            disabled={submitting}
+            onClick={handleClose}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white border border-stone/50 text-sm font-bold text-charcoal-deep/70 hover:bg-cream-warm hover:text-charcoal-deep transition disabled:opacity-50"
             aria-label="Close cart"
           >
             ✕
@@ -100,7 +154,7 @@ export default function CartDrawer({
           )}
         </div>
 
-        {/* Footer & Checkout */}
+        {/* Footer & Order Submission */}
         {items.length > 0 && (
           <div className="border-t border-stone/30 bg-white/70 p-5 sm:p-6 backdrop-blur-sm rounded-b-3xl">
             <div className="flex items-center justify-between">
@@ -113,14 +167,32 @@ export default function CartDrawer({
               </span>
             </div>
 
+            {error ? (
+              <div
+                role="alert"
+                className="mt-3 rounded-xl border border-terracotta/30 bg-terracotta/10 px-3.5 py-2.5 text-xs text-terracotta"
+              >
+                {error}
+              </div>
+            ) : null}
+
             <button
               type="button"
-              disabled={items.length === 0}
-              onClick={handleCheckout}
-              className="mt-4 flex w-full min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-amber-warm px-5 py-3.5 text-sm font-bold text-charcoal-black hover:bg-amber-light transition shadow-md disabled:cursor-not-allowed disabled:bg-stone/40"
+              disabled={submitting || items.length === 0}
+              onClick={handleSendOrder}
+              className="mt-4 flex w-full min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-amber-warm px-5 py-3.5 text-sm font-bold text-charcoal-black hover:bg-amber-light transition shadow-md amber-glow disabled:cursor-not-allowed disabled:bg-stone/40 disabled:text-charcoal-deep/40"
             >
-              <span>Proceed to Checkout</span>
-              <span>→</span>
+              {submitting ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-charcoal-black border-t-transparent" />
+                  <span>Sending order to kitchen...</span>
+                </>
+              ) : (
+                <>
+                  <span>Send Order to Kitchen</span>
+                  <span>→</span>
+                </>
+              )}
             </button>
           </div>
         )}
