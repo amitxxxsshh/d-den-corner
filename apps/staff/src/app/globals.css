@@ -109,3 +109,193 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #C7BBA7;
 }
+
+/* ==========================================================================
+   Hamburger - Elastic Animation (Jonathan Suh Hamburgers)
+   ========================================================================== */
+@layer components {
+  .hamburger {
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition-property: opacity, filter;
+    transition-duration: 0.15s;
+    transition-timing-function: linear;
+    font: inherit;
+    color: inherit;
+    text-transform: none;
+    background-color: transparent;
+    border: 0;
+    margin: 0;
+    overflow: visible;
+  }
+
+  .hamburger:hover {
+    opacity: 0.95;
+  }
+
+  .hamburger-box {
+    width: 18px;
+    height: 14px;
+    display: inline-block;
+    position: relative;
+  }
+
+  .hamburger-inner {
+    display: block;
+    top: 50%;
+    margin-top: -1px;
+  }
+
+  .hamburger-inner,
+  .hamburger-inner::before,
+  .hamburger-inner::after {
+    width: 18px;
+    height: 2px;
+    background-color: currentColor;
+    border-radius: 2px;
+    position: absolute;
+    transition-property: transform;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
+  }
+
+  .hamburger-inner::before,
+  .hamburger-inner::after {
+    content: "";
+    display: block;
+  }
+
+  .hamburger-inner::before {
+    top: -5px;
+  }
+
+  .hamburger-inner::after {
+    bottom: -5px;
+  }
+
+  /*
+   * Elastic Animation Variant
+   */
+  .hamburger--elastic .hamburger-inner {
+    top: 1px;
+    margin-top: 0;
+    transition-duration: 0.275s;
+    transition-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  .hamburger--elastic .hamburger-inner::before {
+    top: 5px;
+    transition: opacity 0.125s 0.275s ease;
+  }
+
+  .hamburger--elastic .hamburger-inner::after {
+    top: 10px;
+    bottom: auto;
+    transition: transform 0.275s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  .hamburger--elastic.is-active .hamburger-inner {
+    transform: translate3d(0, 5px, 0) rotate(135deg);
+    transition-delay: 0.075s;
+  }
+
+  .hamburger--elastic.is-active .hamburger-inner::before {
+    transition-delay: 0s;
+    opacity: 0;
+  }
+
+  .hamburger--elastic.is-active .hamburger-inner::after {
+    transform: translate3d(0, -10px, 0) rotate(-270deg);
+    transition-delay: 0.075s;
+  }
+}
+
+/* Ensure hamburger is strictly hidden on tablet/laptop/desktop */
+@media (min-width: 768px) {
+  .hamburger {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hamburger--elastic .hamburger-inner,
+  .hamburger--elastic .hamburger-inner::before,
+  .hamburger--elastic .hamburger-inner::after {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+}
+
+/* ==========================================================================
+   Mobile Floating Navigation Menu Pop-Out Animation
+   ========================================================================== */
+.mobile-floating-menu {
+  transform-origin: top left;
+  will-change: transform, opacity;
+  transition:
+    opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.22s cubic-bezier(0.34, 1.25, 0.64, 1),
+    visibility 0.22s ease;
+}
+
+.mobile-floating-menu--open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.mobile-floating-menu--closed {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.96);
+  pointer-events: none;
+  visibility: hidden;
+  transition:
+    opacity 0.18s cubic-bezier(0.4, 0, 1, 1),
+    transform 0.18s cubic-bezier(0.4, 0, 1, 1),
+    visibility 0s 0.18s;
+}
+
+/* Staggered Menu Item Micro-Animation */
+.mobile-menu-item {
+  transition:
+    opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mobile-floating-menu--closed .mobile-menu-item {
+  opacity: 0;
+  transform: translateY(3px);
+  transition-delay: 0s !important;
+}
+
+.mobile-floating-menu--open .mobile-menu-item {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.mobile-floating-menu--open .mobile-menu-item:nth-child(1) { transition-delay: 0ms; }
+.mobile-floating-menu--open .mobile-menu-item:nth-child(2) { transition-delay: 25ms; }
+.mobile-floating-menu--open .mobile-menu-item:nth-child(3) { transition-delay: 50ms; }
+.mobile-floating-menu--open .mobile-menu-item:nth-child(4) { transition-delay: 75ms; }
+.mobile-floating-menu--open .mobile-menu-item:nth-child(5) { transition-delay: 100ms; }
+.mobile-floating-menu--open .mobile-menu-item:nth-child(6) { transition-delay: 125ms; }
+.mobile-floating-menu--open .mobile-menu-item:nth-child(7) { transition-delay: 150ms; }
+.mobile-floating-menu--open .mobile-menu-item:nth-child(8) { transition-delay: 175ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-floating-menu,
+  .mobile-floating-menu--open,
+  .mobile-floating-menu--closed,
+  .mobile-menu-item {
+    transform: none !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+}
+
+
+

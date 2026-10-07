@@ -21,12 +21,12 @@ export function DDenLogo({ className = "h-8 w-8", withText = true, subtitle = "R
       </div>
 
       {withText && (
-        <div className="flex flex-col">
-          <span className="text-base font-bold tracking-tight text-cream-soft font-serif">
+        <div className="flex flex-col min-w-0">
+          <span className="text-sm sm:text-base font-bold tracking-tight text-cream-soft font-serif truncate">
             D DEN CORNER
           </span>
           {subtitle && (
-            <span className="text-[10px] uppercase tracking-[0.2em] text-amber-warm/90 font-medium">
+            <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.15em] sm:tracking-[0.2em] text-amber-warm/90 font-medium truncate">
               {subtitle}
             </span>
           )}
