@@ -300,15 +300,107 @@ export default function StaffDashboardPage() {
     });
   }
 
-  const groupedOrdersByDate = useMemo(() => {
-    if (historyMode !== "month" || historyOrders.length === 0) return [];
+  // Combine orders belonging to the same table session into one Order History entry.
+  // Session boundary is strictly based on order.table_session_id (actual table session), NEVER merely table name.
+  const combinedHistorySessions = useMemo(() => {
+    if (!historyOrders || historyOrders.length === 0) return [];
+
+    const sessionMap = new Map();
+
+    for (const order of historyOrders) {
+      // Must group strictly by actual table session, never merely table name
+      const sessionKey = order.table_session_id || `order-${order.id}`;
+
+      let session = sessionMap.get(sessionKey);
+      if (!session) {
+        session = {
+          id: sessionKey,
+          table_session_id: order.table_session_id || sessionKey,
+          table: order.table,
+          orders: [],
+        };
+        sessionMap.set(sessionKey, session);
+      }
+
+      session.orders.push(order);
+    }
+
+    return Array.from(sessionMap.values()).map((session) => {
+      // Sort orders within the session chronologically (earliest placed first) - conceptual behavior as M1 Items
+      const sortedOrders = [...session.orders].sort((a, b) => {
+        const timeA = new Date(a.created_at || a.createdAt || 0).getTime();
+        const timeB = new Date(b.created_at || b.createdAt || 0).getTime();
+        return timeA - timeB;
+      });
+
+      // Combine their items into one item list, preserving item quantities
+      const combinedItems = sortedOrders.flatMap((o) => o.items || []);
+
+      // Calculate the combined total
+      const combinedTotalMinor = sortedOrders.reduce(
+        (sum, o) => sum + Number(o.total_amount_minor || 0),
+        0,
+      );
+
+      // Earliest created and latest accepted timestamps
+      const createdTimes = sortedOrders
+        .map((o) => new Date(o.created_at || 0).getTime())
+        .filter((t) => !isNaN(t) && t > 0);
+      const earliestCreatedAt =
+        createdTimes.length > 0
+          ? new Date(Math.min(...createdTimes)).toISOString()
+          : sortedOrders[0]?.created_at;
+
+      const acceptedTimes = sortedOrders
+        .map((o) => new Date(o.accepted_at || 0).getTime())
+        .filter((t) => !isNaN(t) && t > 0);
+      const latestAcceptedAt =
+        acceptedTimes.length > 0
+          ? new Date(Math.max(...acceptedTimes)).toISOString()
+          : sortedOrders[sortedOrders.length - 1]?.accepted_at;
+
+      // Determine appropriate session status:
+      // If all orders in session are SERVED -> SERVED
+      // Otherwise if any READY -> READY
+      // Otherwise if any PREPARING -> PREPARING
+      // Otherwise if any ACCEPTED -> ACCEPTED
+      // Otherwise latest order status
+      let sessionStatus = "SERVED";
+      if (sortedOrders.every((o) => o.status === "SERVED")) {
+        sessionStatus = "SERVED";
+      } else if (sortedOrders.some((o) => o.status === "READY")) {
+        sessionStatus = "READY";
+      } else if (sortedOrders.some((o) => o.status === "PREPARING")) {
+        sessionStatus = "PREPARING";
+      } else if (sortedOrders.some((o) => o.status === "ACCEPTED")) {
+        sessionStatus = "ACCEPTED";
+      } else {
+        sessionStatus = sortedOrders[sortedOrders.length - 1]?.status || "SERVED";
+      }
+
+      return {
+        id: session.id,
+        table_session_id: session.table_session_id,
+        table: session.table,
+        orders: sortedOrders,
+        items: combinedItems,
+        total_amount_minor: combinedTotalMinor,
+        created_at: earliestCreatedAt,
+        accepted_at: latestAcceptedAt,
+        status: sessionStatus,
+      };
+    });
+  }, [historyOrders]);
+
+  const groupedSessionsByDate = useMemo(() => {
+    if (historyMode !== "month" || combinedHistorySessions.length === 0) return [];
 
     const groups = new Map();
-    for (const order of historyOrders) {
+    for (const session of combinedHistorySessions) {
       let dateKey = "Unknown";
-      if (order.accepted_at) {
+      if (session.accepted_at) {
         try {
-          const d = new Date(order.accepted_at);
+          const d = new Date(session.accepted_at);
           if (!isNaN(d.getTime())) {
             dateKey = new Intl.DateTimeFormat("en-CA", {
               timeZone: revenue.timeZone || "Asia/Kolkata",
@@ -322,10 +414,10 @@ export default function StaffDashboardPage() {
       if (!groups.has(dateKey)) {
         groups.set(dateKey, []);
       }
-      groups.get(dateKey).push(order);
+      groups.get(dateKey).push(session);
     }
 
-    return Array.from(groups.entries()).map(([dateKey, orders]) => {
+    return Array.from(groups.entries()).map(([dateKey, sessions]) => {
       let heading = dateKey;
       if (dateKey !== "Unknown" && dateKey.includes("-")) {
         try {
@@ -340,9 +432,9 @@ export default function StaffDashboardPage() {
           heading = dateKey;
         }
       }
-      return { dateKey, heading, orders };
+      return { dateKey, heading, sessions };
     });
-  }, [historyMode, historyOrders, revenue.timeZone]);
+  }, [historyMode, combinedHistorySessions, revenue.timeZone]);
 
   async function handleTriggerCleanup() {
     try {
@@ -665,7 +757,7 @@ export default function StaffDashboardPage() {
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-stone/30 border-t-amber-warm" />
               <span>Loading order history...</span>
             </div>
-          ) : historyOrders.length === 0 ? (
+          ) : combinedHistorySessions.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-stone/50 bg-white/60 p-12 text-center text-xs text-charcoal-deep/50 space-y-1">
               <p className="font-bold text-sm text-charcoal-deep/70 font-serif">
                 {historyMode === "day"
@@ -680,7 +772,7 @@ export default function StaffDashboardPage() {
             </div>
           ) : historyMode === "month" ? (
             <div className="space-y-6">
-              {groupedOrdersByDate.map((group) => (
+              {groupedSessionsByDate.map((group) => (
                 <div key={group.dateKey} className="space-y-3">
                   <div className="flex items-center gap-2.5 border-b border-stone/30 pb-2">
                     <div className="h-2 w-2 rounded-full bg-amber-warm" />
@@ -688,13 +780,13 @@ export default function StaffDashboardPage() {
                       {group.heading}
                     </h3>
                     <span className="rounded-full bg-cream-warm/70 border border-stone/40 px-2.5 py-0.5 text-[10px] font-bold text-charcoal-deep/60">
-                      {group.orders.length} {group.orders.length === 1 ? "order" : "orders"}
+                      {group.sessions.length} {group.sessions.length === 1 ? "session" : "sessions"}
                     </span>
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {group.orders.map((order) => (
-                      <StaffOrderCard key={order.id} order={order} readOnly />
+                    {group.sessions.map((session) => (
+                      <StaffOrderCard key={session.id} order={session} readOnly />
                     ))}
                   </div>
                 </div>
@@ -752,7 +844,7 @@ export default function StaffDashboardPage() {
                 <table className="w-full text-left text-xs">
                   <thead className="border-b border-stone/30 bg-cream-warm/20 uppercase tracking-wider text-[10px] text-charcoal-deep/60 font-bold">
                     <tr>
-                      <th className="px-4 py-3.5 sm:px-6">Order ID</th>
+                      <th className="px-4 py-3.5 sm:px-6">Table Session</th>
                       <th className="px-4 py-3.5 sm:px-6">Customer / Table</th>
                       <th className="px-4 py-3.5 sm:px-6">Ordered Items</th>
                       <th className="px-4 py-3.5 sm:px-6">Total Amount</th>
@@ -761,36 +853,39 @@ export default function StaffDashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone/20">
-                    {historyOrders.map((order) => {
+                    {combinedHistorySessions.map((session) => {
                       const statusConfig =
-                        STATUS_CONFIG[order.status] || {
-                          label: order.status,
+                        STATUS_CONFIG[session.status] || {
+                          label: session.status,
                           badge: "bg-stone/30 text-charcoal-deep/70",
                         };
 
                       return (
                         <tr
-                          key={order.id}
+                          key={session.id}
                           className="hover:bg-cream-warm/15 transition-colors"
                         >
-                          {/* Order ID */}
+                          {/* Table Session / Orders */}
                           <td className="px-4 py-4 sm:px-6 align-top whitespace-nowrap">
                             <span className="font-mono font-bold text-charcoal-deep text-xs block">
-                              #{order.id.slice(0, 8)}
+                              #{session.table_session_id ? session.table_session_id.slice(0, 8) : session.id.slice(0, 8)}
+                            </span>
+                            <span className="text-[10px] text-charcoal-deep/60 block font-medium">
+                              {session.orders.length} {session.orders.length === 1 ? "order" : "orders combined"}
                             </span>
                             <span className="text-[10px] text-charcoal-deep/45">
-                              Created: {formatDateTime(order.created_at)}
+                              Created: {formatDateTime(session.created_at)}
                             </span>
                           </td>
 
                           {/* Customer / Table */}
                           <td className="px-4 py-4 sm:px-6 align-top">
                             <span className="font-extrabold font-serif text-charcoal-deep text-xs block">
-                              {order.table?.name || "Unassigned Table"}
+                              {session.table?.name || "Unassigned Table"}
                             </span>
-                            {order.table?.locationName ? (
+                            {session.table?.locationName ? (
                               <span className="text-[10px] text-charcoal-deep/50 block">
-                                {order.table.locationName}
+                                {session.table.locationName}
                               </span>
                             ) : null}
                           </td>
@@ -798,9 +893,9 @@ export default function StaffDashboardPage() {
                           {/* Items Breakdown */}
                           <td className="px-4 py-4 sm:px-6 align-top">
                             <div className="space-y-1 max-w-xs">
-                              {order.items.map((item) => (
+                              {session.items.map((item, idx) => (
                                 <div
-                                  key={item.id}
+                                  key={item.id || `${item.menu_item_id || idx}-${idx}`}
                                   className="flex items-baseline justify-between gap-3 text-xs"
                                 >
                                   <span className="text-charcoal-deep/85 font-medium truncate">
@@ -820,13 +915,18 @@ export default function StaffDashboardPage() {
                           {/* Total */}
                           <td className="px-4 py-4 sm:px-6 align-top whitespace-nowrap">
                             <span className="text-sm font-extrabold text-charcoal-deep font-serif block">
-                              {formatPrice(order.total_amount_minor)}
+                              {formatPrice(session.total_amount_minor)}
                             </span>
+                            {session.orders.length > 1 ? (
+                              <span className="text-[10px] font-semibold text-charcoal-deep/50 block">
+                                Combined Total
+                              </span>
+                            ) : null}
                           </td>
 
                           {/* Accepted At */}
                           <td className="px-4 py-4 sm:px-6 align-top whitespace-nowrap text-xs text-charcoal-deep/80">
-                            {formatDateTime(order.accepted_at)}
+                            {formatDateTime(session.accepted_at)}
                           </td>
 
                           {/* Status */}
