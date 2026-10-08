@@ -110,6 +110,11 @@ function MenuPageWithSearchParams() {
       <CustomerHeader subtitle={orderingEnabled ? "TABLE ORDERING" : "EXPLORE MENU"} />
 
       <MenuPageContent
+        onItemAdd={
+          orderingEnabled
+            ? addItem
+            : undefined
+        }
         onItemSelect={
           orderingEnabled
             ? setSelectedItem

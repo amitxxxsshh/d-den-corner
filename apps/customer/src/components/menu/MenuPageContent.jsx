@@ -12,8 +12,10 @@ import { BotanicalAccent } from "../customer/Icons";
 
 export default function MenuPageContent({
   onItemSelect,
+  onItemAdd,
 }) {
   const orderingEnabled =
+    typeof onItemAdd === "function" ||
     typeof onItemSelect === "function";
 
   const [menu, setMenu] = useState({
@@ -405,7 +407,11 @@ export default function MenuPageContent({
       return;
     }
 
-    onItemSelect(item);
+    if (typeof onItemAdd === "function") {
+      onItemAdd(item);
+    } else if (typeof onItemSelect === "function") {
+      onItemSelect(item);
+    }
   }
 
   function handleFestivalAdd(item) {
