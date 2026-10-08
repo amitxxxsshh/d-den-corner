@@ -260,6 +260,8 @@ staffTableRoutes.post(
       return authError;
     }
 
+    const staffUserId = (c as any).get("staffUserId");
+
     const tableId =
       c.req.param("tableId");
 
@@ -307,6 +309,7 @@ staffTableRoutes.post(
       await closeTableSession(
         c.env.DB,
         session.id,
+        staffUserId,
       );
 
     let deactivatedQR = null;

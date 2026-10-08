@@ -12,16 +12,6 @@ function formatPrice(priceMinor) {
   }).format(Number(priceMinor || 0) / 100);
 }
 
-function formatOrderTime(timestamp) {
-  if (!timestamp) return null;
-  const d = new Date(timestamp);
-  if (isNaN(d.getTime())) return null;
-  return d.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 export default function StaffTableGroup({
   group,
   onAcceptOrder,
@@ -35,9 +25,15 @@ export default function StaffTableGroup({
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
+  const pendingOrders = orders.filter((o) => o.status === "NEW");
+
   const checkScroll = useCallback(() => {
     const el = scrollContainerRef.current;
-    if (!el) return;
+    if (!el) {
+      setCanScrollLeft(false);
+      setCanScrollRight(false);
+      return;
+    }
 
     // Small epsilon buffer for high-DPI scaling
     const hasLeft = el.scrollLeft > 6;
@@ -59,7 +55,7 @@ export default function StaffTableGroup({
     return () => {
       resizeObserver.disconnect();
     };
-  }, [orders, checkScroll]);
+  }, [pendingOrders, checkScroll]);
 
   function scroll(direction) {
     const el = scrollContainerRef.current;
@@ -93,6 +89,10 @@ export default function StaffTableGroup({
     const timeB = new Date(b.created_at || b.createdAt || 0).getTime();
     return timeA - timeB;
   });
+
+  const acceptedItems = sortedAcceptedOrders.flatMap(
+    (order) => order.items || [],
+  );
 
   const acceptedTotalMinor = sortedAcceptedOrders.reduce(
     (sum, o) => sum + Number(o.total_amount_minor || 0),
@@ -183,25 +183,23 @@ export default function StaffTableGroup({
                   {tableName} Items
                 </h3>
                 <p className="text-[11px] text-charcoal-deep/60">
-                  {sortedAcceptedOrders.length > 0
-                    ? `${sortedAcceptedOrders.length} ${
-                        sortedAcceptedOrders.length === 1
-                          ? "Accepted Order"
-                          : "Accepted Orders"
+                  {acceptedOrders.length > 0
+                    ? `${acceptedItems.length} ${
+                        acceptedItems.length === 1 ? "Item" : "Items"
                       }`
-                    : "No accepted orders"}
+                    : "No accepted items"}
                 </p>
               </div>
 
-              {sortedAcceptedOrders.length > 0 ? (
+              {acceptedOrders.length > 0 ? (
                 <span className="inline-flex items-center rounded-full bg-forest/15 border border-forest/30 px-2.5 py-0.5 text-[10px] font-bold text-forest uppercase tracking-wider">
                   Accepted
                 </span>
               ) : null}
             </div>
 
-            {/* Accepted Orders List or Empty State */}
-            {sortedAcceptedOrders.length === 0 ? (
+            {/* Continuous Accepted Items List or Empty State */}
+            {acceptedItems.length === 0 ? (
               <div className="py-8 text-center">
                 <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-cream-warm/70 text-xs text-charcoal-deep/50 border border-stone/30">
                   📋
@@ -214,85 +212,32 @@ export default function StaffTableGroup({
                 </p>
               </div>
             ) : (
-              <div className="space-y-4 max-h-[540px] overflow-y-auto pr-1">
-                {sortedAcceptedOrders.map((order, index) => {
-                  const isInitial = index === 0;
-                  const orderTime = formatOrderTime(
-                    order.created_at || order.createdAt,
-                  );
-                  const orderItems = order.items || [];
-
-                  return (
-                    <div
-                      key={order.id}
-                      className="rounded-xl border border-stone/40 bg-cream-warm/15 p-3 text-xs"
-                    >
-                      {/* Order Section Header */}
-                      <div className="flex items-center justify-between gap-2 pb-2 border-b border-stone/30">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span
-                            className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                              isInitial
-                                ? "bg-forest/15 text-forest border border-forest/30"
-                                : "bg-amber-warm/25 text-amber-gold border border-amber-warm/50"
-                            }`}
-                          >
-                            {isInitial ? "Initial Order" : "Running Order"}
-                          </span>
-
-                          {orderTime ? (
-                            <span className="text-[10px] text-charcoal-deep/50 font-medium">
-                              · {orderTime}
-                            </span>
-                          ) : null}
-                        </div>
-
-                        <span className="text-[10px] font-mono text-charcoal-deep/50 shrink-0">
-                          #{order.id.slice(0, 8)}
-                        </span>
-                      </div>
-
-                      {/* Items List */}
-                      <div className="py-2.5 space-y-1.5">
-                        {orderItems.map((item) => (
-                          <div
-                            key={item.id}
-                            className="flex items-start justify-between gap-2"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <span className="font-bold text-charcoal-deep font-serif text-xs sm:text-sm">
-                                {item.quantity}×{" "}
-                              </span>
-                              <span className="text-charcoal-deep/90 font-medium leading-snug">
-                                {item.item_name_snapshot}
-                              </span>
-                            </div>
-
-                            <span className="font-semibold text-charcoal-deep/75 font-mono text-[11px] shrink-0">
-                              {formatPrice(item.line_total_minor)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Order Total Footer */}
-                      <div className="pt-2 border-t border-stone/30 flex items-center justify-between text-[11px]">
-                        <span className="text-charcoal-deep/60 font-medium">
-                          Order Total ({isInitial ? "Initial" : "Running"}):
-                        </span>
-                        <span className="font-bold font-serif text-charcoal-deep text-xs sm:text-sm">
-                          {formatPrice(order.total_amount_minor)}
-                        </span>
-                      </div>
+              <div className="py-1 space-y-2 max-h-[540px] overflow-y-auto pr-1">
+                {acceptedItems.map((item, idx) => (
+                  <div
+                    key={item.id || idx}
+                    className="flex items-start justify-between gap-2 text-xs py-1"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <span className="font-bold text-charcoal-deep font-serif text-xs sm:text-sm">
+                        {item.quantity}×{" "}
+                      </span>
+                      <span className="text-charcoal-deep/90 font-medium leading-snug">
+                        {item.item_name_snapshot}
+                      </span>
                     </div>
-                  );
-                })}
+
+                    <span className="font-semibold text-charcoal-deep/75 font-mono text-[11px] shrink-0">
+                      {formatPrice(item.line_total_minor)}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
 
           {/* Table Items Summary Total at the bottom (if orders accepted) */}
-          {sortedAcceptedOrders.length > 0 ? (
+          {acceptedOrders.length > 0 ? (
             <div className="mt-4 pt-3 border-t border-stone/30 flex items-center justify-between text-xs">
               <span className="text-charcoal-deep/60 font-semibold uppercase tracking-wider text-[10px]">
                 Accepted Total
@@ -304,29 +249,42 @@ export default function StaffTableGroup({
           ) : null}
         </aside>
 
-        {/* Right Side: Existing Horizontally Scrollable Order Cards */}
+        {/* Right Side: Orders waiting for staff action */}
         <div className="flex-1 min-w-0 w-full">
-          <div
-            ref={scrollContainerRef}
-            onScroll={checkScroll}
-            className="flex gap-4 overflow-x-auto scroll-smooth py-2 px-1 focus:outline-none"
-            style={{
-              scrollbarWidth: "thin",
-              scrollSnapType: "x proximity",
-            }}
-          >
-            {orders.map((order) => (
-              <div key={order.id} style={{ scrollSnapAlign: "start" }}>
-                <StaffOrderCard
-                  order={order}
-                  onAdvance={onAcceptOrder}
-                  onComplete={onCompleteOrder}
-                  onDeleteItem={onDeleteItem}
-                  busy={busyOrderId === order.id}
-                />
+          {pendingOrders.length === 0 ? (
+            <div className="flex min-h-[160px] sm:min-h-[180px] h-full items-center justify-center rounded-2xl border border-dashed border-stone/40 bg-white/40 p-6 text-center">
+              <div className="text-center">
+                <p className="text-xs font-semibold text-charcoal-deep/60">
+                  No pending orders waiting for action
+                </p>
+                <p className="mt-1 text-[11px] text-charcoal-deep/40">
+                  New orders from this table will appear here
+                </p>
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <div
+              ref={scrollContainerRef}
+              onScroll={checkScroll}
+              className="flex gap-4 overflow-x-auto scroll-smooth py-2 px-1 focus:outline-none"
+              style={{
+                scrollbarWidth: "thin",
+                scrollSnapType: "x proximity",
+              }}
+            >
+              {pendingOrders.map((order) => (
+                <div key={order.id} style={{ scrollSnapAlign: "start" }}>
+                  <StaffOrderCard
+                    order={order}
+                    onAdvance={onAcceptOrder}
+                    onComplete={onCompleteOrder}
+                    onDeleteItem={onDeleteItem}
+                    busy={busyOrderId === order.id}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </section>

@@ -121,6 +121,7 @@ export async function createTableSession(
 export async function closeTableSession(
   db: D1Database,
   tableSessionId: string,
+  staffUserId?: string | null,
 ): Promise<TableSessionRow | null> {
   const existing =
     await getTableSessionById(
@@ -160,7 +161,7 @@ export async function closeTableSession(
       SELECT id, status
       FROM orders
       WHERE table_session_id = ?
-        AND status IN ('NEW', 'ACCEPTED')
+        AND status IN ('NEW', 'ACCEPTED', 'PREPARING', 'READY')
     `,
     tableSessionId,
   );
@@ -192,11 +193,12 @@ export async function closeTableSession(
           changed_by_user_id,
           created_at
         )
-        VALUES (?, ?, ?, 'SERVED', NULL, ?)
+        VALUES (?, ?, ?, 'SERVED', ?, ?)
       `,
       crypto.randomUUID(),
       ord.id,
       ord.status,
+      staffUserId || null,
       closedAt,
     );
   }

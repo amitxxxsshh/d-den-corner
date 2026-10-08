@@ -610,6 +610,57 @@ async function runActiveOrdersTests() {
     );
   }
 
+  // -------------------------------------------------------------
+  // Scenario I: Close Table Session automatically serves all orders
+  // and moves them to Order History while table becomes CLOSED
+  // -------------------------------------------------------------
+  console.log("✓ Scenario I: Close Table Session -> Automatically serves all orders into Order History");
+  {
+    // Close Table 1 session
+    const closeRes = await worker.fetch(
+      new Request("http://localhost/api/staff/tables/tbl-1/close", {
+        method: "POST",
+        headers: staffHeaders,
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    assert.strictEqual(closeRes.status, 200, "Closing Table 1 session returns 200");
+    const closeBody = await closeRes.json();
+    assert.strictEqual(closeBody.session.status, "CLOSED", "Table session is now CLOSED");
+
+    // Table 1 no longer appears in active staff orders
+    const staffRes = await worker.fetch(
+      new Request("http://localhost/api/staff/orders", { headers: staffHeaders }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    const staffBody = await staffRes.json();
+    const t1 = staffBody.tables.find((t: any) => t.tableName === "Table 1");
+    assert.strictEqual(t1, undefined, "Table 1 must no longer appear in active table orders");
+
+    // Unrelated tables (Table 2, Table 3, Table 10) are unaffected
+    const otherTables = staffBody.tables.map((t: any) => t.tableName);
+    assert.ok(otherTables.includes("Table 2"), "Table 2 orders remain active");
+    assert.ok(otherTables.includes("Table 3"), "Table 3 orders remain active");
+    assert.ok(otherTables.includes("Table 10"), "Table 10 orders remain active");
+
+    // All Table 1 orders now appear in Order History with status SERVED
+    const historyRes = await worker.fetch(
+      new Request("http://localhost/api/staff/orders/history?limit=20", { headers: staffHeaders }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    const historyBody = await historyRes.json();
+    const histB = historyBody.orders.find((o: any) => o.id === orderBId);
+    const histD = historyBody.orders.find((o: any) => o.id === orderDId);
+
+    assert.ok(histB, "Order B must appear in Order History");
+    assert.strictEqual(histB.status, "SERVED", "Order B is automatically SERVED");
+    assert.ok(histD, "Order D must appear in Order History");
+    assert.strictEqual(histD.status, "SERVED", "Order D is automatically SERVED");
+  }
+
   console.log("\n=================================================");
   console.log("ALL MULTIPLE INDEPENDENT ORDERS TESTS PASSED CLEANLY!");
   console.log("=================================================");

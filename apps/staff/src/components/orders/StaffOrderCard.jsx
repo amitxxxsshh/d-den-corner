@@ -43,7 +43,6 @@ export default function StaffOrderCard({
 
   const statusStyle = getStatusStyle(order.status);
   const isNew = order.status === "NEW";
-  const isAccepted = order.status === "ACCEPTED";
 
   const orderTime =
     order.created_at || order.createdAt
@@ -219,29 +218,6 @@ export default function StaffOrderCard({
                 "Accept Order"
               )}
             </button>
-          ) : isAccepted ? (
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 text-xs font-bold text-forest py-1 px-2 rounded-lg bg-forest/10 border border-forest/20">
-                <span>✓</span>
-                <span>Accepted</span>
-              </span>
-
-              {onComplete ? (
-                <button
-                  type="button"
-                  onClick={() => onComplete(order.id)}
-                  disabled={busy}
-                  className="inline-flex min-h-[36px] items-center justify-center rounded-xl border border-stone/60 bg-cream-warm/40 px-3 py-1.5 text-xs font-bold text-charcoal-deep hover:bg-stone/30 transition active:scale-95 shadow-2xs disabled:cursor-not-allowed disabled:opacity-50"
-                  title="Serve and complete this order"
-                >
-                  {busy ? (
-                    <span className="h-3 w-3 animate-spin rounded-full border border-charcoal-deep border-t-transparent" />
-                  ) : (
-                    "Serve"
-                  )}
-                </button>
-              ) : null}
-            </div>
           ) : (
             <span className="text-xs font-bold text-charcoal-deep/60">
               {order.status}
