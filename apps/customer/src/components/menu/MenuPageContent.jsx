@@ -562,7 +562,7 @@ export default function MenuPageContent({
                     </span>
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {section.items.map((item) => (
                       <MenuItemCard
                         key={item.id}

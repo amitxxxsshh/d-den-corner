@@ -66,9 +66,9 @@ export default function MenuItemCard({
   const imageUrl = getMenuItemImageUrl(item);
 
   return (
-    <article className="group relative flex flex-row items-stretch overflow-hidden rounded-2xl border border-stone/50 bg-white p-3.5 sm:p-4 card-warm-shadow menu-card-interactive gap-3.5 sm:gap-4">
-      {/* Visual Food / Beverage Image (LEFT) */}
-      <div className="relative shrink-0 w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 self-start rounded-xl overflow-hidden bg-cream-warm border border-stone/30">
+    <article className="group relative flex flex-col md:flex-row items-stretch overflow-hidden rounded-2xl border border-stone/50 bg-white p-2.5 sm:p-3 md:p-4 card-warm-shadow menu-card-interactive gap-2.5 sm:gap-3 md:gap-4">
+      {/* Visual Food / Beverage Image (Top on mobile, Left on desktop) */}
+      <div className="relative shrink-0 w-full aspect-[4/3] md:w-32 md:h-32 md:aspect-auto self-start rounded-xl overflow-hidden bg-cream-warm border border-stone/30">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imageUrl}
@@ -82,47 +82,47 @@ export default function MenuItemCard({
         />
       </div>
 
-      {/* Item Information (RIGHT) */}
-      <div className="flex flex-1 flex-col justify-between min-w-0">
+      {/* Item Information (Below image on mobile, Right on desktop) */}
+      <div className="flex flex-1 flex-col justify-between min-w-0 w-full">
         <div className="min-w-0">
-          <h3 className="text-sm sm:text-base font-bold text-charcoal-deep font-serif tracking-tight leading-snug line-clamp-2">
+          <h3 className="text-xs sm:text-sm md:text-base font-bold text-charcoal-deep font-serif tracking-tight leading-snug line-clamp-2">
             {item.name}
           </h3>
 
           {item.description ? (
-            <p className="mt-1 text-xs leading-relaxed text-charcoal-deep/65 line-clamp-2">
+            <p className="mt-0.5 sm:mt-1 text-[11px] sm:text-xs leading-tight sm:leading-relaxed text-charcoal-deep/65 line-clamp-2">
               {item.description}
             </p>
           ) : null}
         </div>
 
-        <div className="mt-3 flex items-center justify-between gap-2 pt-2.5 border-t border-stone/30">
-          <div className="flex flex-col">
-            <span className="text-[10px] uppercase tracking-wider text-charcoal-deep/50 font-medium">
+        <div className="mt-2.5 sm:mt-3 flex items-center justify-between gap-1 sm:gap-2 pt-2 md:pt-2.5 border-t border-stone/30">
+          <div className="flex flex-col min-w-0 shrink">
+            <span className="hidden md:block text-[10px] uppercase tracking-wider text-charcoal-deep/50 font-medium">
               Price
             </span>
-            <span className="text-sm sm:text-base font-extrabold text-charcoal-deep">
+            <span className="text-xs sm:text-sm md:text-base font-extrabold text-charcoal-deep truncate">
               ₹{priceFormatted}
             </span>
           </div>
 
           {quantity > 0 && canOrder ? (
             <div
-              className="inline-flex min-h-[40px] sm:min-h-[44px] items-center rounded-xl bg-charcoal-deep text-amber-light shadow-sm shrink-0 border border-charcoal-deep/30 select-none"
+              className="inline-flex h-8 sm:h-9 md:h-11 items-center rounded-xl bg-charcoal-deep text-amber-light shadow-sm shrink-0 border border-charcoal-deep/30 select-none"
               role="group"
               aria-label={`Quantity controls for ${item.name}`}
             >
               <button
                 type="button"
                 onClick={handleDecrease}
-                className="flex min-h-[40px] min-w-[34px] sm:min-h-[44px] sm:min-w-[38px] items-center justify-center text-sm sm:text-base font-bold text-amber-light hover:bg-charcoal-green hover:text-white rounded-l-xl transition active:scale-90"
+                className="flex h-8 min-w-[24px] sm:h-9 sm:min-w-[28px] md:h-11 md:min-w-[38px] items-center justify-center text-xs sm:text-sm md:text-base font-bold text-amber-light hover:bg-charcoal-green hover:text-white rounded-l-xl transition active:scale-90 px-1 sm:px-1.5 md:px-2"
                 aria-label={`Decrease ${item.name} quantity`}
               >
                 −
               </button>
 
               <span
-                className="min-w-[26px] sm:min-w-[30px] text-center text-xs sm:text-sm font-extrabold text-white px-0.5"
+                className="min-w-[18px] sm:min-w-[22px] md:min-w-[30px] text-center text-[11px] sm:text-xs md:text-sm font-extrabold text-white px-0.5"
                 aria-live="polite"
                 aria-atomic="true"
               >
@@ -132,7 +132,7 @@ export default function MenuItemCard({
               <button
                 type="button"
                 onClick={handleIncrease}
-                className="flex min-h-[40px] min-w-[34px] sm:min-h-[44px] sm:min-w-[38px] items-center justify-center text-sm sm:text-base font-bold text-amber-light hover:bg-charcoal-green hover:text-white rounded-r-xl transition active:scale-90"
+                className="flex h-8 min-w-[24px] sm:h-9 sm:min-w-[28px] md:h-11 md:min-w-[38px] items-center justify-center text-xs sm:text-sm md:text-base font-bold text-amber-light hover:bg-charcoal-green hover:text-white rounded-r-xl transition active:scale-90 px-1 sm:px-1.5 md:px-2"
                 aria-label={`Increase ${item.name} quantity`}
               >
                 +
@@ -144,7 +144,7 @@ export default function MenuItemCard({
               disabled={isUnavailable || !handleAdd}
               onClick={handleClick}
               className={[
-                "inline-flex min-h-[40px] sm:min-h-[44px] min-w-[76px] sm:min-w-[84px] items-center justify-center rounded-xl px-3 sm:px-4 py-2 text-xs font-bold transition-all shadow-sm shrink-0",
+                "inline-flex h-8 sm:h-9 md:h-11 min-w-[54px] sm:min-w-[64px] md:min-w-[84px] items-center justify-center rounded-xl px-2.5 sm:px-3 md:px-4 text-[11px] sm:text-xs font-bold transition-all shadow-sm shrink-0",
                 isUnavailable || !handleAdd
                   ? "cursor-not-allowed bg-stone/40 text-charcoal-deep/40"
                   : "bg-charcoal-deep text-amber-light hover:bg-charcoal-green hover:shadow active:scale-95",
