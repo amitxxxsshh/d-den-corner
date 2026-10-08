@@ -567,6 +567,7 @@ export default function MenuPageContent({
                       <MenuItemCard
                         key={item.id}
                         item={item}
+                        orderingEnabled={orderingEnabled}
                         onClick={
                           orderingEnabled
                             ? () => handleRegularAdd(item)
