@@ -494,7 +494,7 @@ export default function MenuPageContent({
       <div
         ref={stickyControlsRef}
         style={{ top: `${headerHeight}px` }}
-        className="sticky z-20 bg-charcoal-black/45 backdrop-blur-md border-b border-white/10 shadow-xs transition-all"
+        className="sticky z-20 border-b border-white/10 shadow-xs transition-all"
       >
         <div className="mx-auto max-w-6xl px-4 py-2.5 sm:px-6">
           {/* Menu Search Bar */}
@@ -553,7 +553,7 @@ export default function MenuPageContent({
                   <div className="mb-4 flex items-center justify-between border-b border-stone/30 pb-2.5">
                     <div className="flex items-center gap-2.5">
                       <span className="h-2 w-2 rounded-full bg-amber-warm" />
-                      <h2 className="text-lg sm:text-xl font-bold font-serif text-charcoal-deep tracking-tight">
+                      <h2 className="text-lg sm:text-xl font-bold font-serif text-white tracking-tight">
                         {section.name}
                       </h2>
                     </div>

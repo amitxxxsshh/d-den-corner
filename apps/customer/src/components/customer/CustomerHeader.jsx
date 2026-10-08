@@ -86,7 +86,7 @@ export default function CustomerHeader({
     <>
       <header
         ref={headerRef}
-        className="sticky top-0 z-30 bg-charcoal-black/65 backdrop-blur-md border-b border-white/10 shadow-sm transition-all"
+        className="sticky top-0 z-30 border-b border-white/10 shadow-sm transition-all"
       >
         <div className="w-full px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-3 sm:gap-6">

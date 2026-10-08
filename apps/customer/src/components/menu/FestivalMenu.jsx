@@ -29,17 +29,13 @@ export default function FestivalMenu({
     ) || festivals[0];
 
   return (
-    <section className="relative overflow-hidden bg-charcoal-deep/85 backdrop-blur-md text-cream-soft border-b border-amber-warm/30 px-4 py-8 sm:px-6">
-      {/* Subtle festive amber glow in background */}
-      <div className="pointer-events-none absolute -top-16 right-0 h-64 w-64 rounded-full bg-amber-warm/15 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 left-0 h-48 w-48 rounded-full bg-forest-dark/30 blur-2xl" />
-
+    <section className="relative px-4 py-8 sm:px-6">
       <div className="relative mx-auto max-w-6xl">
-       <div className="mb-6">
-       <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-cream-soft font-serif">
-         Special Menu
-       </h2>
-      </div>
+        <div className="mb-6">
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white font-serif">
+            Special Menu
+          </h2>
+        </div>
 
         {/* Festival Tabs (if multiple) */} 
         {festivals.length > 1 ? (
@@ -168,9 +164,6 @@ export default function FestivalMenu({
           </div>
         )}
       </div>
-
-      {/* Checker strip at bottom of festival section */}
-      <div className="checker-strip-subtle opacity-20 absolute inset-x-0 bottom-0" />
     </section>
   );
 }
