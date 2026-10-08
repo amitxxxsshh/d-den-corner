@@ -17,6 +17,7 @@ export default function CustomerHeader({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const headerRef = useRef(null);
   const menuRef = useRef(null);
+  const hamburgerRef = useRef(null);
   const [headerHeight, setHeaderHeight] = useState(0);
 
   const isMenu = pathname === "/menu";
@@ -52,6 +53,9 @@ export default function CustomerHeader({
     }
 
     function handlePointerDown(event) {
+      if (hamburgerRef.current && hamburgerRef.current.contains(event.target)) {
+        return;
+      }
       if (
         menuRef.current &&
         !menuRef.current.contains(event.target) &&
@@ -86,7 +90,7 @@ export default function CustomerHeader({
     <>
       <header
         ref={headerRef}
-        className="sticky top-0 z-30 border-b border-white/10 shadow-sm transition-all"
+        className="sticky top-0 z-40 border-b border-white/10 shadow-sm transition-all"
       >
         <div className="w-full px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-3 sm:gap-6">
@@ -94,6 +98,7 @@ export default function CustomerHeader({
             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 shrink-0">
               {/* Mobile Hamburger Button (Far Left on mobile, hidden on md+) */}
               <button
+                ref={hamburgerRef}
                 type="button"
                 onClick={() => setDrawerOpen((prev) => !prev)}
                 aria-label={drawerOpen ? "Close navigation menu" : "Open navigation menu"}
@@ -182,7 +187,7 @@ export default function CustomerHeader({
       <div
         onClick={() => setDrawerOpen(false)}
         aria-hidden="true"
-        className={`fixed inset-0 z-40 bg-transparent md:hidden transition-none ${
+        className={`fixed inset-0 z-30 bg-transparent md:hidden transition-none ${
           drawerOpen ? "pointer-events-auto" : "pointer-events-none"
         }`}
       />
