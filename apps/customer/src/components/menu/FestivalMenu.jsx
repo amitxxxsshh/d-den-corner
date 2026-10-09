@@ -39,7 +39,10 @@ export default function FestivalMenu({
 
         {/* Festival Tabs (if multiple) */} 
         {festivals.length > 1 ? (
-          <div className="mb-6 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+          <div
+            data-lenis-prevent
+            className="mb-6 flex gap-2 overflow-x-auto pb-1 scrollbar-none"
+          >
             {festivals.map((item) => {
               const active = item.id === festival.id;
 

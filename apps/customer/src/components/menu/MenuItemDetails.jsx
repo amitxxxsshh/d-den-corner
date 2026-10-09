@@ -34,10 +34,12 @@ export default function MenuItemDetails({
 
   return (
     <div
+      data-lenis-prevent
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-charcoal-black/70 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
+        data-lenis-prevent
         className="w-full max-w-lg rounded-t-3xl sm:rounded-3xl border border-stone/40 bg-cream-soft p-6 sm:p-7 shadow-2xl text-charcoal-deep transition-all"
         onClick={(event) => event.stopPropagation()}
       >

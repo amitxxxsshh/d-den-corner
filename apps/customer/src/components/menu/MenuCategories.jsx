@@ -50,6 +50,7 @@ export default function MenuCategories({
     <nav
       aria-label="Menu categories"
       ref={containerRef}
+      data-lenis-prevent
       className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
     >
       <button

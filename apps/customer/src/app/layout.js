@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 
 import { CustomerSessionProvider } from "../components/customer/CustomerSessionContext";
 import { CartProvider } from "../components/cart/CartContext";
+import SmoothScrollProvider from "../components/providers/SmoothScrollProvider";
 
 import "./globals.css";
 
@@ -29,7 +30,9 @@ export default function RootLayout({ children }) {
       <body className="min-h-full flex flex-col">
         <CustomerSessionProvider>
           <CartProvider>
-            {children}
+            <SmoothScrollProvider>
+              {children}
+            </SmoothScrollProvider>
           </CartProvider>
         </CustomerSessionProvider>
       </body>

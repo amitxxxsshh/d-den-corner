@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLenis } from "lenis/react";
 
 import { getMenu } from "../../lib/menu";
 import { getCurrentFestivals } from "../../lib/festivals";
@@ -14,6 +15,7 @@ export default function MenuPageContent({
   onItemSelect,
   onItemAdd,
 }) {
+  const lenis = useLenis();
   const orderingEnabled =
     typeof onItemAdd === "function" ||
     typeof onItemSelect === "function";
@@ -284,14 +286,33 @@ export default function MenuPageContent({
     isManualScrollingRef.current = true;
 
     if (categoryId === "ALL") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      if (lenis) {
+        lenis.scrollTo(0, {
+          duration: 1.0,
+          onComplete: () => {
+            isManualScrollingRef.current = false;
+          },
+        });
+      } else {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
       resetManualScrollAfterDelay();
       return;
     }
 
     const target = document.getElementById(`menu-category-${categoryId}`);
     if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (lenis) {
+        lenis.scrollTo(target, {
+          offset: -(totalStickyOffset + 16),
+          duration: 1.0,
+          onComplete: () => {
+            isManualScrollingRef.current = false;
+          },
+        });
+      } else {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
       resetManualScrollAfterDelay();
     }
   };

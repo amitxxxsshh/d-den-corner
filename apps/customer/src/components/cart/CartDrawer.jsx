@@ -93,10 +93,12 @@ export default function CartDrawer({
 
   return (
     <div
+      data-lenis-prevent
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-charcoal-black/75 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={handleClose}
     >
       <div
+        data-lenis-prevent
         className="flex max-h-[88vh] w-full max-w-lg flex-col rounded-t-3xl sm:rounded-3xl border border-stone/40 bg-cream-soft text-charcoal-deep shadow-2xl transition-all"
         onClick={(event) => event.stopPropagation()}
       >
@@ -129,7 +131,10 @@ export default function CartDrawer({
         </div>
 
         {/* Items List */}
-        <div className="flex-1 overflow-y-auto px-5 sm:px-6 divide-y divide-stone/30">
+        <div
+          data-lenis-prevent
+          className="flex-1 overflow-y-auto px-5 sm:px-6 divide-y divide-stone/30"
+        >
           {items.length === 0 ? (
             <div className="py-16 text-center">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-cream-warm text-amber-gold">
