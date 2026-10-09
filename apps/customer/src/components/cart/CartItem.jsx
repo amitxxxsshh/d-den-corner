@@ -21,19 +21,19 @@ export default function CartItem({ item }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-bold text-charcoal-deep font-serif text-sm sm:text-base leading-snug">
+            <h3 className="font-bold text-cream-soft font-serif text-sm sm:text-base leading-snug">
               {item.name}
             </h3>
 
             {isFestivalSpecial ? (
-              <span className="rounded-full bg-amber-warm/20 border border-amber-warm/40 px-2 py-0.5 text-[9px] font-bold text-amber-gold uppercase tracking-wider">
+              <span className="rounded-full bg-amber-warm/20 border border-amber-warm/40 px-2 py-0.5 text-[9px] font-bold text-amber-light uppercase tracking-wider">
                 Festival
               </span>
             ) : null}
           </div>
 
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-xs font-semibold text-charcoal-deep/80">
+            <span className="text-xs font-semibold text-stone/90">
               {formatCartPrice(item.priceMinor)}
             </span>
 
@@ -41,7 +41,7 @@ export default function CartItem({ item }) {
             item.regularPriceMinor !== null &&
             item.regularPriceMinor !== undefined &&
             Number(item.regularPriceMinor) !== Number(item.priceMinor) ? (
-              <span className="text-[11px] text-charcoal-deep/40 line-through">
+              <span className="text-[11px] text-stone/50 line-through">
                 {formatCartPrice(item.regularPriceMinor)}
               </span>
             ) : null}
@@ -56,7 +56,7 @@ export default function CartItem({ item }) {
               specialMenuId,
             )
           }
-          className="shrink-0 p-1 text-xs font-medium text-charcoal-deep/45 hover:text-terracotta transition"
+          className="shrink-0 p-1 text-xs font-medium text-stone/60 hover:text-terracotta transition"
           aria-label={`Remove ${item.name}`}
         >
           Remove
@@ -65,7 +65,7 @@ export default function CartItem({ item }) {
 
       <div className="mt-3 flex items-center justify-between gap-3">
         {/* Thumb-friendly Quantity Controls (min 40px) */}
-        <div className="inline-flex items-center rounded-xl border border-stone/50 bg-white shadow-xs">
+        <div className="inline-flex items-center rounded-xl border border-white/15 bg-charcoal-black/60 shadow-xs">
           <button
             type="button"
             onClick={() =>
@@ -74,13 +74,13 @@ export default function CartItem({ item }) {
                 specialMenuId,
               )
             }
-            className="flex h-9 w-9 items-center justify-center text-sm font-bold text-charcoal-deep hover:bg-cream-warm rounded-l-xl transition active:scale-95"
+            className="flex h-9 w-9 items-center justify-center text-sm font-bold text-stone hover:bg-white/10 hover:text-cream-soft rounded-l-xl transition active:scale-95"
             aria-label={`Decrease ${item.name}`}
           >
             −
           </button>
 
-          <span className="min-w-9 text-center text-xs font-bold text-charcoal-deep">
+          <span className="min-w-9 text-center text-xs font-bold text-cream-soft">
             {item.quantity}
           </span>
 
@@ -92,14 +92,14 @@ export default function CartItem({ item }) {
                 specialMenuId,
               )
             }
-            className="flex h-9 w-9 items-center justify-center text-sm font-bold text-charcoal-deep hover:bg-cream-warm rounded-r-xl transition active:scale-95"
+            className="flex h-9 w-9 items-center justify-center text-sm font-bold text-stone hover:bg-white/10 hover:text-cream-soft rounded-r-xl transition active:scale-95"
             aria-label={`Increase ${item.name}`}
           >
             +
           </button>
         </div>
 
-        <span className="text-sm font-extrabold text-charcoal-deep">
+        <span className="text-sm font-extrabold text-cream-soft">
           {formatCartPrice(
             Number(item.priceMinor || 0) * Number(item.quantity || 0),
           )}

@@ -298,6 +298,58 @@ body {
 }
 
 /* ==========================================================================
+   Cart Drawer Glassmorphism & Entrance Animation
+   ========================================================================== */
+.cart-drawer-overlay {
+  transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cart-drawer-overlay--active {
+  opacity: 1;
+}
+
+.cart-drawer-overlay--inactive {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cart-drawer-panel {
+  will-change: transform, opacity;
+  transition:
+    opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cart-drawer-panel--active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.cart-drawer-panel--inactive {
+  opacity: 0;
+  transform: translateY(100%) scale(1);
+}
+
+@media (min-width: 640px) {
+  .cart-drawer-panel--inactive {
+    transform: translateY(12px) scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cart-drawer-overlay,
+  .cart-drawer-overlay--active,
+  .cart-drawer-overlay--inactive,
+  .cart-drawer-panel,
+  .cart-drawer-panel--active,
+  .cart-drawer-panel--inactive {
+    transform: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+
+/* ==========================================================================
    Mobile Floating Navigation Menu 3D Depth Animation
    ========================================================================== */
 .mobile-floating-menu {

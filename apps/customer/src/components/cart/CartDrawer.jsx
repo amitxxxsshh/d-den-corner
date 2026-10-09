@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import CartItem from "./CartItem";
@@ -26,9 +26,35 @@ export default function CartDrawer({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  if (!open) {
-    return null;
+  const [mounted, setMounted] = useState(open);
+  const [active, setActive] = useState(open);
+
+  if (open && !mounted) {
+    setMounted(true);
   }
+
+  useEffect(() => {
+    let timer;
+    let raf;
+
+    if (open) {
+      raf = requestAnimationFrame(() => {
+        setActive(true);
+      });
+    } else {
+      raf = requestAnimationFrame(() => {
+        setActive(false);
+      });
+      timer = setTimeout(() => {
+        setMounted(false);
+      }, 300);
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [open]);
 
   function handleClose() {
     if (submitting) {
@@ -36,6 +62,24 @@ export default function CartDrawer({
     }
     setError("");
     onClose();
+  }
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape" && !submitting) {
+        setError("");
+        onClose();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, submitting, onClose]);
+
+  if (!mounted && !open) {
+    return null;
   }
 
   async function handleSendOrder() {
@@ -94,25 +138,29 @@ export default function CartDrawer({
   return (
     <div
       data-lenis-prevent
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-charcoal-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+      className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/55 backdrop-blur-[2px] cart-drawer-overlay ${
+        active ? "cart-drawer-overlay--active" : "cart-drawer-overlay--inactive"
+      }`}
       onClick={handleClose}
     >
       <div
         data-lenis-prevent
-        className="flex max-h-[88vh] w-full max-w-lg flex-col rounded-t-3xl sm:rounded-3xl border border-stone/40 bg-cream-soft text-charcoal-deep shadow-2xl transition-all"
+        className={`cart-drawer-panel flex max-h-[88vh] w-full max-w-lg flex-col rounded-t-3xl sm:rounded-3xl border border-white/15 bg-charcoal-green/85 backdrop-blur-xl text-cream-soft shadow-2xl shadow-charcoal-black/80 ring-1 ring-white/10 ${
+          active ? "cart-drawer-panel--active" : "cart-drawer-panel--inactive"
+        }`}
         onClick={(event) => event.stopPropagation()}
       >
         {/* Mobile handle */}
-        <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-stone/70 sm:hidden" />
+        <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-white/25 sm:hidden" />
 
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-stone/30 p-5 sm:p-6">
+        <div className="flex items-center justify-between border-b border-white/10 p-5 sm:p-6">
           <div>
-            <h2 className="text-xl font-bold font-serif text-charcoal-deep tracking-tight">
+            <h2 className="text-xl font-bold font-serif text-cream-soft tracking-tight">
               Your Order Cart
             </h2>
 
-            <p className="mt-0.5 text-xs text-charcoal-deep/60">
+            <p className="mt-0.5 text-xs text-stone/80">
               {items.length === 0
                 ? "Your cart is empty"
                 : `${items.length} ${items.length === 1 ? "item" : "items"} selected`}
@@ -123,7 +171,7 @@ export default function CartDrawer({
             type="button"
             disabled={submitting}
             onClick={handleClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white border border-stone/50 text-sm font-bold text-charcoal-deep/70 hover:bg-cream-warm hover:text-charcoal-deep transition disabled:opacity-50"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 border border-white/15 text-sm font-bold text-stone hover:bg-white/20 hover:text-cream-soft transition disabled:opacity-50"
             aria-label="Close cart"
           >
             ✕
@@ -133,17 +181,17 @@ export default function CartDrawer({
         {/* Items List */}
         <div
           data-lenis-prevent
-          className="flex-1 overflow-y-auto px-5 sm:px-6 divide-y divide-stone/30"
+          className="flex-1 overflow-y-auto px-5 sm:px-6 divide-y divide-white/10"
         >
           {items.length === 0 ? (
             <div className="py-16 text-center">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-cream-warm text-amber-gold">
-                <BotanicalAccent className="h-6 w-6 text-forest" />
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 border border-white/10 text-amber-warm">
+                <BotanicalAccent className="h-6 w-6 text-amber-warm" />
               </div>
-              <p className="font-serif text-base font-bold text-charcoal-deep">
+              <p className="font-serif text-base font-bold text-cream-soft">
                 Your cart is empty
               </p>
-              <p className="mt-1 text-xs text-charcoal-deep/60">
+              <p className="mt-1 text-xs text-stone/75">
                 Explore our rooftop café menu and add your favorite dishes.
               </p>
             </div>
@@ -161,13 +209,13 @@ export default function CartDrawer({
 
         {/* Footer & Order Submission */}
         {items.length > 0 && (
-          <div className="border-t border-stone/30 bg-white/70 p-5 sm:p-6 backdrop-blur-sm rounded-b-3xl">
+          <div className="border-t border-white/10 bg-black/25 backdrop-blur-md p-5 sm:p-6 rounded-b-3xl">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-charcoal-deep/70">
+              <span className="text-sm font-semibold text-stone/80">
                 Order Subtotal
               </span>
 
-              <span className="text-xl font-extrabold text-charcoal-deep">
+              <span className="text-xl font-extrabold text-cream-soft">
                 {formatCartPrice(subtotalMinor)}
               </span>
             </div>
@@ -175,7 +223,7 @@ export default function CartDrawer({
             {error ? (
               <div
                 role="alert"
-                className="mt-3 rounded-xl border border-terracotta/30 bg-terracotta/10 px-3.5 py-2.5 text-xs text-terracotta"
+                className="mt-3 rounded-xl border border-terracotta/40 bg-terracotta/15 px-3.5 py-2.5 text-xs text-amber-light"
               >
                 {error}
               </div>
@@ -185,7 +233,7 @@ export default function CartDrawer({
               type="button"
               disabled={submitting || items.length === 0}
               onClick={handleSendOrder}
-              className="mt-4 flex w-full min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-amber-warm px-5 py-3.5 text-sm font-bold text-charcoal-black hover:bg-amber-light transition shadow-md amber-glow disabled:cursor-not-allowed disabled:bg-stone/40 disabled:text-charcoal-deep/40"
+              className="mt-4 flex w-full min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-amber-warm px-5 py-3.5 text-sm font-bold text-charcoal-black hover:bg-amber-light transition shadow-md amber-glow disabled:cursor-not-allowed disabled:bg-stone/30 disabled:text-stone/50"
             >
               {submitting ? (
                 <>
