@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import CustomerHeader from "../../components/customer/CustomerHeader";
+import CustomerMenuBackground from "../../components/menu/CustomerMenuBackground";
 import MenuPageContent from "../../components/menu/MenuPageContent";
 import MenuItemDetails from "../../components/menu/MenuItemDetails";
 import MenuJoin from "../../components/menu/MenuJoin";
@@ -13,29 +14,6 @@ import CartDrawer from "../../components/cart/CartDrawer";
 
 import { useCart } from "../../components/cart/CartContext";
 import { useCustomerSession } from "../../components/customer/CustomerSessionContext";
-
-function CustomerMenuBackground() {
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-0 overflow-hidden select-none"
-    >
-      <picture>
-        <source
-          media="(min-width: 768px)"
-          srcSet="/images/customer/d-den-corner-menu-bg-desktop.webp"
-        />
-        <img
-          src="/images/customer/d-den-corner-menu-bg-mobile.webp"
-          alt=""
-          className="h-full w-full object-cover object-center"
-        />
-      </picture>
-      {/* Subtle readability overlay so background is visible while preserving foreground legibility */}
-      <div className="absolute inset-0 bg-cream-soft/20 pointer-events-none" />
-    </div>
-  );
-}
 
 function MenuPageWithSearchParams() {
   const searchParams = useSearchParams();

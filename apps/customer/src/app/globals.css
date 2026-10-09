@@ -368,7 +368,39 @@ body {
     transition-duration: 0.01ms !important;
     transition-delay: 0ms !important;
   }
+
+  .foliage-interactive-layer {
+    transform: none !important;
+    transition: none !important;
+  }
 }
+
+/* ==========================================================================
+   Interactive Background Foliage 3D Layer
+   ========================================================================== */
+.foliage-interactive-layer {
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+/* ==========================================================================
+   Continuous Customer Menu Repeating Background Base
+   ========================================================================== */
+.customer-menu-bg-repeat {
+  background-image: url("/images/customer/d-den-corner-menu-bg-mobile.webp");
+  background-repeat: repeat-y;
+  background-size: 100% auto;
+  background-position: top center;
+}
+
+@media (min-width: 768px) {
+  .customer-menu-bg-repeat {
+    background-image: url("/images/customer/d-den-corner-menu-bg-desktop.webp");
+  }
+}
+
+
 
 
 
