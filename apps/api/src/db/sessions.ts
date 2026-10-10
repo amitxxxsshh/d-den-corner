@@ -61,21 +61,17 @@ export async function createTableSession(
   db: D1Database,
   tableId: string,
 ): Promise<TableSessionRow> {
-  const existing =
-    await getActiveTableSession(
-      db,
-      tableId,
-    );
+  const existing = await getActiveTableSession(
+    db,
+    tableId,
+  );
 
   if (existing) {
     return existing;
   }
 
-  const id =
-    crypto.randomUUID();
-
-  const now =
-    new Date().toISOString();
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
 
   await execute(
     db,
@@ -103,16 +99,13 @@ export async function createTableSession(
     now,
   );
 
-  const session =
-    await getTableSessionById(
-      db,
-      id,
-    );
+  const session = await getTableSessionById(
+    db,
+    id,
+  );
 
   if (!session) {
-    throw new Error(
-      "TABLE_SESSION_CREATE_FAILED",
-    );
+    throw new Error("TABLE_SESSION_CREATE_FAILED");
   }
 
   return session;
@@ -123,11 +116,10 @@ export async function closeTableSession(
   tableSessionId: string,
   staffUserId?: string | null,
 ): Promise<TableSessionRow | null> {
-  const existing =
-    await getTableSessionById(
-      db,
-      tableSessionId,
-    );
+  const existing = await getTableSessionById(
+    db,
+    tableSessionId,
+  );
 
   if (!existing) {
     return null;
@@ -137,8 +129,7 @@ export async function closeTableSession(
     return existing;
   }
 
-  const closedAt =
-    new Date().toISOString();
+  const closedAt = new Date().toISOString();
 
   await execute(
     db,
@@ -154,53 +145,67 @@ export async function closeTableSession(
     tableSessionId,
   );
 
-  // Complete any active orders for this table session so they transition to SERVED in Order History
-  const activeOrders = await queryMany<{ id: string; status: string }>(
+  // Only complete orders that were previously accepted.
+  // An unaccepted NEW order must never become SERVED
+  // merely because its table session was closed.
+  const activeOrders = await queryMany<{
+    id: string;
+    status: string;
+  }>(
     db,
     `
       SELECT id, status
       FROM orders
       WHERE table_session_id = ?
-        AND status IN ('NEW', 'ACCEPTED', 'PREPARING', 'READY')
+        AND status IN ('ACCEPTED', 'PREPARING', 'READY')
+        AND accepted_at IS NOT NULL
     `,
     tableSessionId,
   );
 
   for (const ord of activeOrders) {
-    await execute(
-      db,
-      `
-        UPDATE orders
-        SET
-          status = 'SERVED',
-          accepted_at = CASE WHEN accepted_at IS NULL THEN ? ELSE accepted_at END,
-          updated_at = ?
-        WHERE id = ?
-      `,
-      closedAt,
-      closedAt,
-      ord.id,
-    );
+    // Recheck the current status to avoid overwriting
+    // an order that has changed since it was selected.
+    const updateResult = await db
+      .prepare(
+        `
+          UPDATE orders
+          SET
+            status = 'SERVED',
+            updated_at = ?
+          WHERE id = ?
+            AND status IN ('ACCEPTED', 'PREPARING', 'READY')
+            AND accepted_at IS NOT NULL
+        `,
+      )
+      .bind(
+        closedAt,
+        ord.id,
+      )
+      .run();
 
-    await execute(
-      db,
-      `
-        INSERT INTO order_status_history (
-          id,
-          order_id,
-          from_status,
-          to_status,
-          changed_by_user_id,
-          created_at
-        )
-        VALUES (?, ?, ?, 'SERVED', ?, ?)
-      `,
-      crypto.randomUUID(),
-      ord.id,
-      ord.status,
-      staffUserId || null,
-      closedAt,
-    );
+    // Record the transition only when the order was updated.
+    if (updateResult.meta.changes > 0) {
+      await execute(
+        db,
+        `
+          INSERT INTO order_status_history (
+            id,
+            order_id,
+            from_status,
+            to_status,
+            changed_by_user_id,
+            created_at
+          )
+          VALUES (?, ?, ?, 'SERVED', ?, ?)
+        `,
+        crypto.randomUUID(),
+        ord.id,
+        ord.status,
+        staffUserId || null,
+        closedAt,
+      );
+    }
   }
 
   return getTableSessionById(
