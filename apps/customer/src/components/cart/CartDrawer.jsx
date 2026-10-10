@@ -7,6 +7,11 @@ import CartItem from "./CartItem";
 import { useCart } from "./CartContext";
 import { useCustomerSession } from "../customer/CustomerSessionContext";
 import { createOrder } from "../../lib/orders";
+import { joinTableWithQRToken } from "../../lib/qr";
+import {
+  getCustomerSessionToken,
+  getQRToken,
+} from "../../lib/session-token";
 import { formatCartPrice } from "../../lib/cart";
 import { BotanicalAccent } from "../customer/Icons";
 
@@ -15,7 +20,7 @@ export default function CartDrawer({
   onClose,
 }) {
   const router = useRouter();
-  const { isAuthenticated } = useCustomerSession();
+  const { isAuthenticated, refreshSession } = useCustomerSession();
 
   const {
     items,
@@ -83,13 +88,6 @@ export default function CartDrawer({
   }
 
   async function handleSendOrder() {
-    if (!isAuthenticated) {
-      setError(
-        "You must connect to a table using your table's QR link before placing an order.",
-      );
-      return;
-    }
-
     if (!Array.isArray(items) || items.length === 0) {
       setError("Your cart is empty.");
       return;
@@ -103,7 +101,45 @@ export default function CartDrawer({
     setError("");
 
     try {
-      const response = await createOrder(items);
+      let response = null;
+      let needsRecovery = false;
+
+      const currentSessionToken = getCustomerSessionToken();
+      if (isAuthenticated && currentSessionToken) {
+        try {
+          response = await createOrder(items);
+        } catch (submitError) {
+          if (submitError?.status === 401) {
+            needsRecovery = true;
+          } else {
+            throw submitError;
+          }
+        }
+      } else {
+        needsRecovery = true;
+      }
+
+      if (needsRecovery) {
+        const qrToken = getQRToken();
+        if (!qrToken) {
+          throw new Error(
+            "You must connect to a table using your table's QR link before placing an order.",
+          );
+        }
+
+        await joinTableWithQRToken(qrToken);
+
+        const refreshedSession = await refreshSession();
+        const activeToken = getCustomerSessionToken();
+
+        if (!activeToken || !refreshedSession) {
+          throw new Error(
+            "Unable to establish an active table session.",
+          );
+        }
+
+        response = await createOrder(items);
+      }
 
       const orderId =
         response?.order?.id ||

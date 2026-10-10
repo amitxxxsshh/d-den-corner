@@ -1,5 +1,5 @@
 import { apiRequest } from "./api";
-import { setCustomerSessionToken } from "./session-token";
+import { setCustomerSessionToken, setQRToken } from "./session-token";
 
 export async function joinTableWithQRToken(token) {
   if (!token || typeof token !== "string") {
@@ -16,6 +16,7 @@ export async function joinTableWithQRToken(token) {
   const sessionToken = result?.token || result?.session?.token;
   if (sessionToken) {
     setCustomerSessionToken(sessionToken);
+    setQRToken(token);
   }
 
   return result;

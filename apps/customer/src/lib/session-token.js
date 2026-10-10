@@ -39,3 +39,46 @@ export function clearCustomerSessionToken() {
     // Ignore storage errors
   }
 }
+
+const QR_TOKEN_STORAGE_KEY = "dd_customer_qr_token";
+
+export function getQRToken() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    return window.sessionStorage.getItem(QR_TOKEN_STORAGE_KEY) || null;
+  } catch {
+    return null;
+  }
+}
+
+export function setQRToken(token) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    if (token) {
+      window.sessionStorage.setItem(QR_TOKEN_STORAGE_KEY, token);
+    } else {
+      window.sessionStorage.removeItem(QR_TOKEN_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore storage errors (e.g. storage disabled or quota exceeded)
+  }
+}
+
+export function clearQRToken() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.sessionStorage.removeItem(QR_TOKEN_STORAGE_KEY);
+  } catch {
+    // Ignore storage errors
+  }
+}
+

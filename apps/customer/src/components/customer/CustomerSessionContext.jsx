@@ -13,6 +13,7 @@ import {
   getCustomerSession,
   getCustomerSessionToken,
   clearCustomerSessionToken,
+  clearQRToken,
   leaveCustomerSession,
 } from "../../lib/session";
 
@@ -24,14 +25,13 @@ export function CustomerSessionProvider({ children }) {
   const [error, setError] = useState(null);
 
   const refreshSession = useCallback(async () => {
-    setStatus("loading");
     setError(null);
 
     const token = getCustomerSessionToken();
     if (!token) {
       setSession(null);
       setStatus("unauthenticated");
-      return;
+      return null;
     }
 
     try {
@@ -39,6 +39,7 @@ export function CustomerSessionProvider({ children }) {
 
       setSession(result?.session || null);
       setStatus("authenticated");
+      return result?.session || null;
     } catch (err) {
       setSession(null);
 
@@ -52,6 +53,7 @@ export function CustomerSessionProvider({ children }) {
             "Unable to load your table session.",
         );
       }
+      return null;
     }
   }, []);
 
@@ -60,6 +62,7 @@ export function CustomerSessionProvider({ children }) {
       await leaveCustomerSession();
     } catch {
       clearCustomerSessionToken();
+      clearQRToken();
     } finally {
       setSession(null);
       setStatus("unauthenticated");

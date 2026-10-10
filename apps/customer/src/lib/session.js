@@ -3,12 +3,18 @@ import {
   getCustomerSessionToken,
   setCustomerSessionToken,
   clearCustomerSessionToken,
+  getQRToken,
+  setQRToken,
+  clearQRToken,
 } from "./session-token";
 
 export {
   getCustomerSessionToken,
   setCustomerSessionToken,
   clearCustomerSessionToken,
+  getQRToken,
+  setQRToken,
+  clearQRToken,
 };
 
 export async function getCustomerSession() {
@@ -22,5 +28,6 @@ export async function leaveCustomerSession() {
     });
   } finally {
     clearCustomerSessionToken();
+    clearQRToken();
   }
 }
