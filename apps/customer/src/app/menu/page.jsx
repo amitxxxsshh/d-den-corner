@@ -11,6 +11,7 @@ import MenuJoin from "../../components/menu/MenuJoin";
 
 import CartBar from "../../components/cart/CartBar";
 import CartDrawer from "../../components/cart/CartDrawer";
+import OrderConfirmationDrawer from "../../components/orders/OrderConfirmationDrawer";
 
 import { useCart } from "../../components/cart/CartContext";
 import { useCustomerSession } from "../../components/customer/CustomerSessionContext";
@@ -29,6 +30,12 @@ function MenuPageWithSearchParams() {
 
   const [cartOpen, setCartOpen] =
     useState(false);
+
+  const [confirmationOpen, setConfirmationOpen] =
+    useState(false);
+
+  const [confirmedOrderId, setConfirmedOrderId] =
+    useState(null);
 
   const { addItem } = useCart();
 
@@ -80,6 +87,21 @@ function MenuPageWithSearchParams() {
     setSelectedItem(null);
   }
 
+  function handleOrderSuccess(orderId) {
+    setCartOpen(false);
+    setConfirmedOrderId(orderId);
+    setConfirmationOpen(true);
+  }
+
+  function handleOpenCart() {
+    setConfirmationOpen(false);
+    setCartOpen(true);
+  }
+
+  function handleCloseConfirmation() {
+    setConfirmationOpen(false);
+  }
+
   return (
     <div className="relative min-h-screen text-charcoal-deep flex flex-col">
       <CustomerMenuBackground />
@@ -110,11 +132,18 @@ function MenuPageWithSearchParams() {
 
       {orderingEnabled ? (
         <>
-          <CartBar onClick={() => setCartOpen(true)} />
+          <CartBar onClick={handleOpenCart} />
 
           <CartDrawer
             open={cartOpen}
             onClose={() => setCartOpen(false)}
+            onOrderSuccess={handleOrderSuccess}
+          />
+
+          <OrderConfirmationDrawer
+            open={confirmationOpen}
+            orderId={confirmedOrderId}
+            onClose={handleCloseConfirmation}
           />
         </>
       ) : null}

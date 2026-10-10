@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 
 import CartItem from "./CartItem";
 import { useCart } from "./CartContext";
@@ -18,8 +17,8 @@ import { BotanicalAccent } from "../customer/Icons";
 export default function CartDrawer({
   open,
   onClose,
+  onOrderSuccess,
 }) {
-  const router = useRouter();
   const { isAuthenticated, refreshSession } = useCustomerSession();
 
   const {
@@ -155,11 +154,9 @@ export default function CartDrawer({
       setError("");
       onClose();
 
-      router.push(
-        `/order-confirmation?orderId=${encodeURIComponent(
-          orderId,
-        )}`,
-      );
+      if (typeof onOrderSuccess === "function") {
+        onOrderSuccess(orderId);
+      }
     } catch (submitError) {
       setError(
         submitError instanceof Error
