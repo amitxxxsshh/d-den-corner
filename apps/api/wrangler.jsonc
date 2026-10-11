@@ -12,6 +12,15 @@
       "migrations_dir": "migrations"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "FOOD_IMAGES_BUCKET",
+      "bucket_name": "d-den-corner-food-images"
+    }
+  ],
+  "images": {
+    "binding": "IMAGES"
+  },
   "triggers": {
     "crons": ["0 3 * * *"]
   }

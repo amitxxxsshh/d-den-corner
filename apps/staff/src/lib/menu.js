@@ -71,3 +71,36 @@ export async function updateMenuItem(
     },
   );
 }
+
+export async function uploadMenuItemImage(itemId, file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiRequest(
+    `/api/staff/menu/items/${encodeURIComponent(itemId)}/image`,
+    {
+      method: "POST",
+      body: formData,
+    },
+  );
+}
+
+export async function removeMenuItemImage(itemId) {
+  return apiRequest(
+    `/api/staff/menu/items/${encodeURIComponent(itemId)}/image`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export async function uploadGenericImage(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiRequest(
+    `/api/staff/menu/upload`,
+    {
+      method: "POST",
+      body: formData,
+    },
+  );
+}

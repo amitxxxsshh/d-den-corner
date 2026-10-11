@@ -56,6 +56,7 @@ function initTestDb() {
     "0004_staff_passwords.sql",
     "0005_order_accepted_at.sql",
     "0006_qr_tokens_raw_token.sql",
+    "0007_menu_items_image_url.sql",
   ];
 
   for (const name of migrationNames) {

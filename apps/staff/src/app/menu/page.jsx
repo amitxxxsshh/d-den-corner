@@ -9,6 +9,8 @@ import {
   getMenuItems,
   updateMenuCategory,
   updateMenuItem,
+  uploadMenuItemImage,
+  removeMenuItemImage,
 } from "../../lib/menu";
 import {
   getMenuItemImageUrl,
@@ -72,8 +74,6 @@ function CloseIcon({ className = "w-4 h-4" }) {
   );
 }
 
-const STORAGE_KEY = "staff_menu_custom_images";
-
 export default function MenuManagementPage() {
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
@@ -88,27 +88,14 @@ export default function MenuManagementPage() {
   const [itemDescription, setItemDescription] = useState("");
   const [itemPrice, setItemPrice] = useState("");
   const [newItemImagePreview, setNewItemImagePreview] = useState(null);
+  const [newItemFile, setNewItemFile] = useState(null);
 
   // Search & category navigation
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategoryTab, setSelectedCategoryTab] = useState("ALL");
 
-  // Custom uploaded images map: itemId -> dataUrl (initialized from localStorage)
-  const [customImages, setCustomImages] = useState(() => {
-    if (typeof window === "undefined") return {};
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === "object") {
-          return parsed;
-        }
-      }
-    } catch (err) {
-      console.warn("Could not load custom menu images from storage:", err);
-    }
-    return {};
-  });
+  // Track currently uploading item ID for loading indicators
+  const [uploadingTarget, setUploadingTarget] = useState(null);
 
   // Full Edit Item Modal state
   const [editingItem, setEditingItem] = useState(null);
@@ -207,32 +194,32 @@ export default function MenuManagementPage() {
     );
   }, [categories]);
 
-  // Save custom image to state and localStorage
-  function persistCustomImage(itemId, dataUrl) {
-    setCustomImages((prev) => {
-      const updated = { ...prev, [itemId]: dataUrl };
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch (err) {
-        console.warn("localStorage quota exceeded or failed:", err);
-      }
-      return updated;
-    });
-  }
+  // Remove custom image and revert to catalog default via backend API
+  async function removeCustomImage(itemId) {
+    const targetItem = items.find((i) => i.id === itemId) || (editingItem?.id === itemId ? editingItem : null);
+    try {
+      setUploadingTarget(itemId);
+      setError("");
+      setSuccess("");
 
-  // Remove custom image and revert to catalog default
-  function removeCustomImage(itemId) {
-    setCustomImages((prev) => {
-      const updated = { ...prev };
-      delete updated[itemId];
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch (err) {
-        console.warn("localStorage update failed:", err);
+      const result = await removeMenuItemImage(itemId);
+      const updatedItem = result?.item;
+
+      setItems((prev) =>
+        prev.map((i) => (i.id === itemId ? (updatedItem || { ...i, image_url: null }) : i))
+      );
+
+      if (editingItem && editingItem.id === itemId) {
+        setEditingItem((prev) => (prev ? { ...prev, image_url: null } : null));
       }
-      return updated;
-    });
-    setSuccess("Custom photo removed. Restored catalog image.");
+
+      setSuccess(`Custom photo removed for "${targetItem?.name || "dish"}". Restored catalog image.`);
+    } catch (err) {
+      console.error("Failed to remove image:", err);
+      setError(err instanceof Error ? err.message : "Failed to remove custom photo.");
+    } finally {
+      setUploadingTarget(null);
+    }
   }
 
   // Trigger file picker for specific target
@@ -244,13 +231,13 @@ export default function MenuManagementPage() {
     }
   }
 
-  // Handle browser file selection
-  function handleFileSelected(event) {
+  // Handle browser file selection and upload to backend
+  async function handleFileSelected(event) {
     const file = event.target.files?.[0];
     if (!file || !uploadTarget) return;
 
     if (!file.type.startsWith("image/")) {
-      setError("Please select a valid image file (JPEG, PNG, WEBP, etc.)");
+      setError("Please select a valid image file (JPG, JPEG, PNG, WebP).");
       return;
     }
 
@@ -259,32 +246,55 @@ export default function MenuManagementPage() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result;
-      if (!dataUrl || typeof dataUrl !== "string") return;
+    if (uploadTarget === "new-item") {
+      setNewItemFile(file);
+      setNewItemImagePreview(URL.createObjectURL(file));
+      setSuccess("Image selected for new dish.");
+      setUploadTarget(null);
+      return;
+    }
 
-      if (uploadTarget === "new-item") {
-        setNewItemImagePreview(dataUrl);
-        setSuccess("Image selected for new dish.");
-      } else if (uploadTarget === "edit-item") {
-        if (editingItem) {
-          persistCustomImage(editingItem.id, dataUrl);
-          setSuccess(`Photo updated for "${editingItem.name}".`);
-        }
-      } else {
-        // Direct upload on a specific menu item card
-        persistCustomImage(uploadTarget, dataUrl);
-        const targetItem = items.find((i) => i.id === uploadTarget);
-        setSuccess(`Photo updated for "${targetItem?.name || "dish"}".`);
+    const targetItemId = uploadTarget === "edit-item" ? editingItem?.id : uploadTarget;
+    if (!targetItemId) {
+      setUploadTarget(null);
+      return;
+    }
+
+    const targetItem = items.find((i) => i.id === targetItemId) || (editingItem?.id === targetItemId ? editingItem : null);
+
+    try {
+      setUploadingTarget(targetItemId);
+      setError("");
+      setSuccess("");
+
+      const result = await uploadMenuItemImage(targetItemId, file);
+      const updatedItem = result?.item;
+      const newImageUrl = result?.imageUrl || updatedItem?.image_url;
+
+      if (updatedItem) {
+        setItems((prev) =>
+          prev.map((i) => (i.id === targetItemId ? updatedItem : i))
+        );
+      } else if (newImageUrl) {
+        setItems((prev) =>
+          prev.map((i) => (i.id === targetItemId ? { ...i, image_url: newImageUrl } : i))
+        );
       }
+
+      if (editingItem && editingItem.id === targetItemId) {
+        setEditingItem((prev) =>
+          prev ? { ...prev, image_url: newImageUrl || updatedItem?.image_url } : null
+        );
+      }
+
+      setSuccess(`Photo updated successfully for "${targetItem?.name || "dish"}".`);
+    } catch (err) {
+      console.error("Failed to upload image:", err);
+      setError(err instanceof Error ? err.message : "Failed to upload image.");
+    } finally {
+      setUploadingTarget(null);
       setUploadTarget(null);
-    };
-    reader.onerror = () => {
-      setError("Failed to read the selected file.");
-      setUploadTarget(null);
-    };
-    reader.readAsDataURL(file);
+    }
   }
 
   // Category management: Create Category
@@ -385,13 +395,18 @@ export default function MenuManagementPage() {
       });
 
       const newItem = createdResponse?.item;
-      if (newItem?.id && newItemImagePreview) {
-        persistCustomImage(newItem.id, newItemImagePreview);
+      if (newItem?.id && newItemFile) {
+        try {
+          await uploadMenuItemImage(newItem.id, newItemFile);
+        } catch (uploadErr) {
+          console.warn("Failed to upload image for new item:", uploadErr);
+        }
       }
 
       setItemName("");
       setItemDescription("");
       setItemPrice("");
+      setNewItemFile(null);
       setNewItemImagePreview(null);
 
       await loadData();
@@ -849,7 +864,10 @@ export default function MenuManagementPage() {
                         {newItemImagePreview && (
                           <button
                             type="button"
-                            onClick={() => setNewItemImagePreview(null)}
+                            onClick={() => {
+                              setNewItemFile(null);
+                              setNewItemImagePreview(null);
+                            }}
                             className="rounded-lg border border-stone/40 bg-white p-1.5 text-charcoal-deep/60 hover:text-terracotta transition"
                             title="Remove photo"
                           >
@@ -1061,7 +1079,7 @@ export default function MenuManagementPage() {
                         key={item.id}
                         item={item}
                         categoryMap={categoryMap}
-                        customImage={customImages[item.id]}
+                        isUploading={uploadingTarget === item.id}
                         onToggleAvailability={() => toggleItem(item)}
                         onEditPrice={() => editItemPrice(item)}
                         onEditItem={() => openEditModal(item)}
@@ -1082,7 +1100,7 @@ export default function MenuManagementPage() {
                   key={item.id}
                   item={item}
                   categoryMap={categoryMap}
-                  customImage={customImages[item.id]}
+                  isUploading={uploadingTarget === item.id}
                   onToggleAvailability={() => toggleItem(item)}
                   onEditPrice={() => editItemPrice(item)}
                   onEditItem={() => openEditModal(item)}
@@ -1126,10 +1144,7 @@ export default function MenuManagementPage() {
                   <div className="relative h-16 w-16 shrink-0 rounded-xl overflow-hidden bg-cream-warm border border-stone/30">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={
-                        customImages[editingItem.id] ||
-                        getMenuItemImageUrl(editingItem)
-                      }
+                      src={getMenuItemImageUrl(editingItem)}
                       alt={editingItem.name}
                       className="h-full w-full object-cover"
                       onError={(e) => {
@@ -1144,7 +1159,7 @@ export default function MenuManagementPage() {
                       Dish Photo
                     </span>
                     <p className="text-xs font-semibold text-charcoal-deep">
-                      {customImages[editingItem.id] ? "Custom Uploaded Photo" : "Catalog Photo"}
+                      {editingItem.image_url ? "Custom Uploaded Photo" : "Catalog Photo"}
                     </p>
                   </div>
                 </div>
@@ -1153,17 +1168,23 @@ export default function MenuManagementPage() {
                   <button
                     type="button"
                     onClick={() => handleTriggerImageUpload("edit-item")}
-                    className="inline-flex items-center gap-1 rounded-lg border border-stone/50 bg-white px-2.5 py-1.5 text-xs font-bold text-charcoal-deep hover:bg-stone/20 transition shadow-2xs"
+                    disabled={uploadingTarget === editingItem.id}
+                    className="inline-flex items-center gap-1 rounded-lg border border-stone/50 bg-white px-2.5 py-1.5 text-xs font-bold text-charcoal-deep hover:bg-stone/20 transition shadow-2xs disabled:opacity-50"
                   >
                     <UploadIcon className="w-3.5 h-3.5 text-amber-gold" />
-                    {customImages[editingItem.id] ? "Change" : "Upload"}
+                    {uploadingTarget === editingItem.id
+                      ? "Uploading..."
+                      : editingItem.image_url
+                        ? "Change"
+                        : "Upload"}
                   </button>
 
-                  {customImages[editingItem.id] && (
+                  {editingItem.image_url && (
                     <button
                       type="button"
                       onClick={() => removeCustomImage(editingItem.id)}
-                      className="rounded-lg border border-stone/40 bg-white px-2 py-1.5 text-xs font-bold text-charcoal-deep/60 hover:text-charcoal-deep hover:bg-stone/20 transition"
+                      disabled={uploadingTarget === editingItem.id}
+                      className="rounded-lg border border-stone/40 bg-white px-2 py-1.5 text-xs font-bold text-charcoal-deep/60 hover:text-charcoal-deep hover:bg-stone/20 transition disabled:opacity-50"
                     >
                       Reset
                     </button>
@@ -1287,6 +1308,7 @@ function MenuItemStaffCard({
   item,
   categoryMap,
   customImage,
+  isUploading,
   onToggleAvailability,
   onEditPrice,
   onEditItem,
@@ -1295,10 +1317,14 @@ function MenuItemStaffCard({
   onRemoveCustomImage,
 }) {
   const isAvailable = item.available === 1;
-  const isCustomUploaded = Boolean(customImage);
+  const isCustomUploaded = Boolean(item.image_url || customImage);
 
-  // Resolve image URL: custom image takes priority, otherwise uses Customer menu visual mapping
-  const resolvedItem = customImage ? { ...item, imageUrl: customImage } : item;
+  // Resolve image URL: explicit image_url takes priority, then customImage, then visual mapping
+  const resolvedItem = item.image_url
+    ? item
+    : customImage
+      ? { ...item, imageUrl: customImage }
+      : item;
   const displayImageUrl = getMenuItemImageUrl(resolvedItem);
   const priceFormatted = (Number(item.price_minor || 0) / 100).toFixed(2);
 
@@ -1319,7 +1345,11 @@ function MenuItemStaffCard({
         />
 
         {/* Image Source Badge */}
-        {isCustomUploaded ? (
+        {isUploading ? (
+          <span className="absolute top-1.5 left-1.5 rounded-md bg-amber-gold px-1.5 py-0.5 text-[9px] font-extrabold text-charcoal-deep shadow-2xs animate-pulse">
+            Uploading...
+          </span>
+        ) : isCustomUploaded ? (
           <span className="absolute top-1.5 left-1.5 rounded-md bg-amber-warm px-1.5 py-0.5 text-[9px] font-extrabold text-charcoal-deep shadow-2xs">
             Custom
           </span>
@@ -1333,11 +1363,12 @@ function MenuItemStaffCard({
         <button
           type="button"
           onClick={onTriggerImageUpload}
+          disabled={isUploading}
           title="Upload image from computer"
-          className="absolute inset-x-1 bottom-1 flex items-center justify-center gap-1 rounded-lg bg-charcoal-deep/85 hover:bg-charcoal-deep text-cream-soft py-1 text-[10px] font-bold backdrop-blur-xs transition shadow-sm opacity-90 sm:opacity-0 sm:group-hover/img:opacity-100"
+          className="absolute inset-x-1 bottom-1 flex items-center justify-center gap-1 rounded-lg bg-charcoal-deep/85 hover:bg-charcoal-deep text-cream-soft py-1 text-[10px] font-bold backdrop-blur-xs transition shadow-sm opacity-90 sm:opacity-0 sm:group-hover/img:opacity-100 disabled:opacity-50"
         >
           <CameraIcon className="w-3 h-3 text-amber-warm" />
-          <span>{isCustomUploaded ? "Change" : "Add Image"}</span>
+          <span>{isUploading ? "Uploading..." : isCustomUploaded ? "Change" : "Add Image"}</span>
         </button>
       </div>
 
@@ -1427,18 +1458,20 @@ function MenuItemStaffCard({
             <button
               type="button"
               onClick={onTriggerImageUpload}
-              className="inline-flex items-center gap-1 rounded-lg border border-stone/50 bg-white px-2 py-1 text-[11px] font-bold text-charcoal-deep hover:bg-stone/20 transition shadow-2xs"
+              disabled={isUploading}
+              className="inline-flex items-center gap-1 rounded-lg border border-stone/50 bg-white px-2 py-1 text-[11px] font-bold text-charcoal-deep hover:bg-stone/20 transition shadow-2xs disabled:opacity-50"
             >
               <UploadIcon className="w-3 h-3 text-amber-gold" />
-              {isCustomUploaded ? "Change Photo" : "Add Image"}
+              {isUploading ? "Uploading..." : isCustomUploaded ? "Change Photo" : "Add Image"}
             </button>
 
             {isCustomUploaded && (
               <button
                 type="button"
                 onClick={onRemoveCustomImage}
+                disabled={isUploading}
                 title="Restore default catalog image"
-                className="inline-flex items-center rounded-lg border border-stone/40 bg-white px-1.5 py-1 text-[11px] font-bold text-charcoal-deep/60 hover:text-charcoal-deep hover:bg-stone/20 transition"
+                className="inline-flex items-center rounded-lg border border-stone/40 bg-white px-1.5 py-1 text-[11px] font-bold text-charcoal-deep/60 hover:text-charcoal-deep hover:bg-stone/20 transition disabled:opacity-50"
               >
                 Reset
               </button>

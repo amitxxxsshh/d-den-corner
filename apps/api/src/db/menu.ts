@@ -174,7 +174,8 @@ export async function getMenuItemById(
         available,
         archived,
         created_at,
-        updated_at
+        updated_at,
+        image_url
       FROM menu_items
       WHERE id = ?
       LIMIT 1
@@ -198,7 +199,8 @@ export async function getAvailableMenuItems(
         mi.available,
         mi.archived,
         mi.created_at,
-        mi.updated_at
+        mi.updated_at,
+        mi.image_url
       FROM menu_items mi
       INNER JOIN menu_categories mc ON mi.category_id = mc.id
       WHERE mi.available = 1
@@ -224,7 +226,8 @@ export async function getStaffMenuItems(
         available,
         archived,
         created_at,
-        updated_at
+        updated_at,
+        image_url
       FROM menu_items
       WHERE archived = 0
       ORDER BY name ASC
@@ -247,7 +250,8 @@ export async function getAllMenuItems(
         available,
         archived,
         created_at,
-        updated_at
+        updated_at,
+        image_url
       FROM menu_items
       WHERE archived = 0
       ORDER BY name ASC
@@ -271,7 +275,8 @@ export async function getAvailableMenuItemsByCategory(
         mi.available,
         mi.archived,
         mi.created_at,
-        mi.updated_at
+        mi.updated_at,
+        mi.image_url
       FROM menu_items mi
       INNER JOIN menu_categories mc ON mi.category_id = mc.id
       WHERE mi.category_id = ?
@@ -291,6 +296,8 @@ export async function createMenuItem(
     name: string;
     description?: string;
     priceMinor: number;
+    imageUrl?: string | null;
+    image_url?: string | null;
   }
 ): Promise<MenuItemRow> {
   const category = await getMenuCategoryById(
@@ -307,6 +314,12 @@ export async function createMenuItem(
   }
 
   const id = generateOpaqueToken(16);
+  const imageUrl =
+    input.imageUrl !== undefined
+      ? input.imageUrl
+      : input.image_url !== undefined
+        ? input.image_url
+        : null;
 
   await execute(
     db,
@@ -318,15 +331,17 @@ export async function createMenuItem(
         description,
         price_minor,
         available,
-        archived
+        archived,
+        image_url
       )
-      VALUES (?, ?, ?, ?, ?, 1, 0)
+      VALUES (?, ?, ?, ?, ?, 1, 0, ?)
     `,
     id,
     input.categoryId,
     input.name.trim(),
     input.description?.trim() || null,
-    input.priceMinor
+    input.priceMinor,
+    imageUrl
   );
 
   const item = await getMenuItemById(db, id);
@@ -348,6 +363,8 @@ export async function updateMenuItem(
     priceMinor?: number;
     available?: boolean;
     archived?: boolean;
+    imageUrl?: string | null;
+    image_url?: string | null;
   }
 ): Promise<MenuItemRow | null> {
   const current = await getMenuItemById(
@@ -402,6 +419,13 @@ export async function updateMenuItem(
         : 0
       : current.archived;
 
+  let imageUrl = current.image_url ?? null;
+  if (input.imageUrl !== undefined) {
+    imageUrl = input.imageUrl;
+  } else if (input.image_url !== undefined) {
+    imageUrl = input.image_url;
+  }
+
   await execute(
     db,
     `
@@ -413,6 +437,7 @@ export async function updateMenuItem(
         price_minor = ?,
         available = ?,
         archived = ?,
+        image_url = ?,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `,
@@ -422,6 +447,33 @@ export async function updateMenuItem(
     priceMinor,
     available,
     archived,
+    imageUrl,
+    menuItemId
+  );
+
+  return getMenuItemById(db, menuItemId);
+}
+
+export async function updateMenuItemImage(
+  db: D1Database,
+  menuItemId: string,
+  imageUrl: string | null
+): Promise<MenuItemRow | null> {
+  const current = await getMenuItemById(db, menuItemId);
+  if (!current) {
+    return null;
+  }
+
+  await execute(
+    db,
+    `
+      UPDATE menu_items
+      SET
+        image_url = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `,
+    imageUrl,
     menuItemId
   );
 

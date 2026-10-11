@@ -23,6 +23,8 @@ export type CreateMenuItemInput = {
   name: string;
   description?: string;
   priceMinor: number;
+  imageUrl?: string | null;
+  image_url?: string | null;
 };
 
 export type UpdateMenuItemInput = {
@@ -32,4 +34,6 @@ export type UpdateMenuItemInput = {
   priceMinor?: number;
   available?: boolean;
   archived?: boolean;
+  imageUrl?: string | null;
+  image_url?: string | null;
 };

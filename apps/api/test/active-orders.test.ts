@@ -55,6 +55,7 @@ function initTestDb() {
     "0004_staff_passwords.sql",
     "0005_order_accepted_at.sql",
     "0006_qr_tokens_raw_token.sql",
+    "0007_menu_items_image_url.sql",
   ];
 
   for (const name of migrationNames) {
@@ -616,6 +617,17 @@ async function runActiveOrdersTests() {
   // -------------------------------------------------------------
   console.log("✓ Scenario I: Close Table Session -> Automatically serves all orders into Order History");
   {
+    // Accept Order D before closing session
+    const acceptD = await worker.fetch(
+      new Request(`http://localhost/api/staff/orders/${orderDId}/status`, {
+        method: "POST",
+        headers: staffHeaders,
+      }),
+      { DB: d1 } as any,
+      {} as any,
+    );
+    assert.strictEqual(acceptD.status, 200, "Accepting Order D returns 200");
+
     // Close Table 1 session
     const closeRes = await worker.fetch(
       new Request("http://localhost/api/staff/tables/tbl-1/close", {
