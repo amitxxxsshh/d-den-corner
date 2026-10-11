@@ -1,78 +1,134 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
+import gsap from "gsap";
 
 import CustomerHeader from "../customer/CustomerHeader";
-import { DDenLogo, BotanicalAccent, SunflowerMotif } from "../customer/Icons";
 import { useCustomerSession } from "../customer/CustomerSessionContext";
 import { joinTableWithQRToken } from "../../lib/qr";
+import CinematicIntro from "../intro/CinematicIntro";
 
-export default function MenuJoin({ token }) {
+function subscribeReducedMotion(callback) {
+  if (typeof window === "undefined" || !window.matchMedia) {
+    return () => {};
+  }
+  const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+  if (typeof query.addEventListener === "function") {
+    query.addEventListener("change", callback);
+    return () => query.removeEventListener("change", callback);
+  } else if (typeof query.addListener === "function") {
+    query.addListener(callback);
+    return () => query.removeListener(callback);
+  }
+  return () => {};
+}
+
+function getReducedMotionSnapshot() {
+  if (typeof window === "undefined" || !window.matchMedia) {
+    return false;
+  }
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function getReducedMotionServerSnapshot() {
+  return false;
+}
+
+export default function MenuJoin({ token, onDismiss }) {
   const router = useRouter();
+  const { refreshSession, setSessionData } = useCustomerSession();
 
-  const {
-    refreshSession,
-  } = useCustomerSession();
+  const [connectionStatus, setConnectionStatus] = useState(() =>
+    token ? "joining" : "error",
+  );
 
-  const [status, setStatus] =
-    useState("joining");
+  const [errorMessage, setErrorMessage] = useState(() =>
+    token
+      ? ""
+      : "No ordering link was provided. Please use the ordering link for your table.",
+  );
 
-  const [errorMessage, setErrorMessage] =
-    useState("");
+  const [introState, setIntroState] = useState("playing"); // 'playing' | 'done' | 'skipped' | 'fallback'
+  const [retryKey, setRetryKey] = useState(0);
 
+  const reducedMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    getReducedMotionSnapshot,
+    getReducedMotionServerSnapshot,
+  );
+
+  const navigatedRef = useRef(false);
+  const activeRequestIdRef = useRef(0);
+  const fallbackOverlayRef = useRef(null);
+
+  // Clean URL and complete transition into menu
+  const performNavigation = useCallback(() => {
+    if (navigatedRef.current) {
+      return;
+    }
+    navigatedRef.current = true;
+
+    /*
+     * Remove the secret token from the
+     * visible URL and browser history.
+     */
+    window.history.replaceState(
+      {},
+      "",
+      window.location.pathname,
+    );
+
+    if (onDismiss) {
+      onDismiss();
+    }
+    router.replace("/menu");
+  }, [onDismiss, router]);
+
+  // Concurrent table connection in background
   useEffect(() => {
     if (!token) {
-      setStatus("error");
-
-      setErrorMessage(
-        "No ordering link was provided. Please use the ordering link for your table.",
-      );
-
       return;
     }
 
-    let cancelled = false;
+    const currentRequestId = ++activeRequestIdRef.current;
+    let isCancelled = false;
 
     async function joinTable() {
       try {
-        setStatus("joining");
+        setConnectionStatus("joining");
 
-        await joinTableWithQRToken(token);
+        const result = await joinTableWithQRToken(token);
 
-        if (cancelled) {
+        if (isCancelled || currentRequestId !== activeRequestIdRef.current) {
           return;
         }
 
         /*
-         * Refresh the existing global customer
-         * session so /menu immediately enters
-         * ordering mode.
+         * Hydrate the global customer session context immediately
+         * from the join response to avoid waiting on an extra network roundtrip.
          */
-        await refreshSession();
-
-        if (cancelled) {
-          return;
+        if (result?.session && setSessionData) {
+          setSessionData(result.session);
         }
 
         /*
-         * Remove the secret token from the
-         * visible URL and browser history.
+         * Refresh the existing global customer session in background
+         * to sync any extra context from /api/sessions/me.
          */
-        window.history.replaceState(
-          {},
-          "",
-          window.location.pathname,
-        );
+        await refreshSession().catch(() => {});
 
-        router.replace("/menu");
+        if (isCancelled || currentRequestId !== activeRequestIdRef.current) {
+          return;
+        }
+
+        setConnectionStatus("success");
       } catch (error) {
-        if (cancelled) {
+        if (isCancelled || currentRequestId !== activeRequestIdRef.current) {
           return;
         }
 
-        setStatus("error");
-
+        setConnectionStatus("error");
         setErrorMessage(
           error?.message ||
             "We could not connect you to this table. Please use the ordering link for your table again.",
@@ -83,26 +139,82 @@ export default function MenuJoin({ token }) {
     joinTable();
 
     return () => {
-      cancelled = true;
+      isCancelled = true;
     };
-  }, [
-    router,
-    token,
-    refreshSession,
-  ]);
+  }, [token, refreshSession, setSessionData, retryKey]);
 
-  if (status === "error") {
+  // Watchdog timeout to prevent indefinite waiting if network hangs
+  useEffect(() => {
+    if (connectionStatus !== "joining") {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setConnectionStatus("error");
+      setErrorMessage(
+        "Connecting to your table timed out. Please check your connection and try again.",
+      );
+    }, 15000);
+
+    return () => clearTimeout(timeoutId);
+  }, [connectionStatus, retryKey]);
+
+  // Reset and reconnect when retrying
+  const handleRetry = useCallback(() => {
+    setIntroState("skipped");
+    setConnectionStatus("joining");
+    setErrorMessage("");
+    setRetryKey((prev) => prev + 1);
+  }, []);
+
+  // When reducedMotion is active or intro was bypassed/fallback, coordinate transition directly
+  useEffect(() => {
+    if (connectionStatus !== "success") {
+      return;
+    }
+
+    const isIntroBypassed =
+      reducedMotion ||
+      introState === "skipped" ||
+      introState === "fallback";
+
+    if (isIntroBypassed) {
+      if (fallbackOverlayRef.current) {
+        gsap.to(fallbackOverlayRef.current, {
+          opacity: 0,
+          duration: 0.4,
+          ease: "power2.inOut",
+          onComplete: performNavigation,
+        });
+      } else {
+        performNavigation();
+      }
+    }
+  }, [connectionStatus, reducedMotion, introState, performNavigation]);
+
+  // Cleanup tweens on unmount
+  useEffect(() => {
+    const fallbackEl = fallbackOverlayRef.current;
+    return () => {
+      if (fallbackEl) {
+        gsap.killTweensOf(fallbackEl);
+      }
+    };
+  }, []);
+
+  // Connection failure UI (takes immediate priority over intro)
+  if (connectionStatus === "error") {
     return (
-      <main className="min-h-screen bg-charcoal-deep flex flex-col justify-between px-4 py-8 text-cream-soft">
+      <main className="fixed inset-0 z-50 overflow-y-auto bg-charcoal-deep flex flex-col justify-between px-4 py-8 text-cream-soft">
         <CustomerHeader subtitle="CONNECT TABLE" />
 
         <div className="mx-auto my-auto w-full max-w-md">
           <div className="overflow-hidden rounded-3xl border border-terracotta/30 bg-cream-soft p-6 sm:p-8 text-center text-charcoal-deep shadow-2xl">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-terracotta/15 text-terracotta">
               <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
             </div>
 
@@ -117,16 +229,26 @@ export default function MenuJoin({ token }) {
             <div className="mt-6 flex flex-col gap-2.5">
               <button
                 type="button"
-                onClick={() => window.location.reload()}
-                className="w-full rounded-xl bg-charcoal-deep py-3 text-xs font-bold text-cream-soft hover:bg-charcoal-green transition"
+                onClick={handleRetry}
+                className="w-full rounded-xl bg-charcoal-deep py-3 text-xs font-bold text-cream-soft hover:bg-charcoal-green transition cursor-pointer"
               >
                 Try Again
               </button>
 
               <button
                 type="button"
-                onClick={() => router.replace("/menu")}
-                className="w-full rounded-xl border border-stone/60 bg-transparent py-2.5 text-xs font-semibold text-charcoal-deep hover:bg-stone/20 transition"
+                onClick={() => {
+                  window.history.replaceState(
+                    {},
+                    "",
+                    window.location.pathname,
+                  );
+                  if (onDismiss) {
+                    onDismiss();
+                  }
+                  router.replace("/menu");
+                }}
+                className="w-full rounded-xl border border-stone/60 bg-transparent py-2.5 text-xs font-semibold text-charcoal-deep hover:bg-stone/20 transition cursor-pointer"
               >
                 View Menu Without Seating
               </button>
@@ -139,63 +261,50 @@ export default function MenuJoin({ token }) {
     );
   }
 
+  // Intro completed and dissolved; menu is active underneath
+  if (introState === "done") {
+    return null;
+  }
+
+  // Cinematic Intro View (Standard QR flow)
+  if (!reducedMotion && introState === "playing") {
+    return (
+      <CinematicIntro
+        isConnected={connectionStatus === "success"}
+        onComplete={() => {
+          setIntroState("done");
+          performNavigation();
+        }}
+        onSkip={() => {
+          setIntroState("skipped");
+          if (connectionStatus === "success") {
+            performNavigation();
+          }
+        }}
+        onFallback={() => {
+          setIntroState("fallback");
+          if (connectionStatus === "success") {
+            performNavigation();
+          }
+        }}
+      />
+    );
+  }
+
+  // Quiet fallback overlay shown ONLY while waiting for connection if intro was skipped, bypassed, or reduced motion
   return (
-    <main className="min-h-screen bg-charcoal-deep flex flex-col justify-between px-4 py-8 text-cream-soft">
-      <CustomerHeader subtitle="CONNECTING" />
+    <main
+      ref={fallbackOverlayRef}
+      className="fixed inset-0 z-50 bg-charcoal-deep flex flex-col justify-between px-4 py-8 text-cream-soft"
+    >
+      <CustomerHeader subtitle="MENU" />
 
-      {/* Atmospheric Table Join Card */}
-      <div className="relative mx-auto my-auto w-full max-w-md">
-        {/* Warm amber architectural glow */}
-        <div className="pointer-events-none absolute -top-12 left-1/2 -translate-x-1/2 h-48 w-64 rounded-full bg-amber-warm/20 blur-2xl" />
-
-        <div className="relative overflow-hidden rounded-3xl border border-amber-warm/30 bg-cream-soft p-6 sm:p-8 text-center text-charcoal-deep shadow-2xl">
-          {/* Subtle top checker accent */}
-          <div className="checker-strip-subtle opacity-30 -mx-8 -mt-8 mb-6 h-1.5" />
-
-          {/* D Den Corner Arch & Lantern Emblem */}
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-charcoal-deep border border-amber-warm/40 p-3 shadow-md">
-            <svg viewBox="0 0 32 32" fill="none" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-              <path d="M6 28V14C6 8.47715 10.4772 4 16 4C21.5228 4 26 8.47715 26 14V28" stroke="#D89A3A" strokeWidth="2" strokeLinecap="round" />
-              <line x1="4" y1="28" x2="28" y2="28" stroke="#D89A3A" strokeWidth="2" strokeLinecap="round" />
-              <line x1="16" y1="4" x2="16" y2="12" stroke="#E8B85C" strokeWidth="1.5" strokeDasharray="1 1.5" />
-              <circle cx="16" cy="14" r="4" fill="#D89A3A" />
-              <circle cx="16" cy="14" r="2" fill="#F7F1E5" />
-              <path d="M12 24C12 21 16 19 16 19C16 19 20 21 20 24Z" fill="#304A35" />
-            </svg>
-          </div>
-
-          <div className="mt-4 flex items-center justify-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-warm animate-ping" />
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-amber-gold">
-              D Den Corner Rooftop
-            </p>
-          </div>
-
-          <h1 className="mt-2 text-2xl font-bold font-serif text-charcoal-deep">
-            Connecting to Your Table
-          </h1>
-
-          <p className="mt-2 text-xs leading-relaxed text-charcoal-deep/70">
-            Setting up your table session and loading the live rooftop café menu...
-          </p>
-
-          <div className="mt-6 flex items-center justify-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-forest animate-bounce" style={{ animationDelay: "0ms" }} />
-            <div className="h-2 w-2 rounded-full bg-amber-warm animate-bounce" style={{ animationDelay: "150ms" }} />
-            <div className="h-2 w-2 rounded-full bg-forest animate-bounce" style={{ animationDelay: "300ms" }} />
-          </div>
-
-          <div className="mt-6 rounded-2xl bg-charcoal-green/5 border border-stone/40 p-3.5 text-left">
-            <div className="flex items-center gap-2">
-              <BotanicalAccent className="h-4 w-4 text-forest" />
-              <span className="text-xs font-semibold text-charcoal-deep">
-                Table-Side Contactless Dining
-              </span>
-            </div>
-            <p className="mt-1 text-[11px] text-charcoal-deep/60 leading-normal">
-              Browse dishes, add festival specials, customize selections, and send orders directly to our kitchen.
-            </p>
-          </div>
+      <div className="mx-auto my-auto text-center">
+        <div className="inline-flex items-center gap-2 rounded-full bg-charcoal-green/40 border border-amber-warm/30 px-4 py-2 shadow-sm">
+          <div className="h-2 w-2 rounded-full bg-amber-warm animate-ping" />
+          <span className="text-xs font-medium text-cream-warm tracking-wide">
+            Finalizing table connection...
+          </span>
         </div>
       </div>
 

@@ -57,6 +57,17 @@ export function CustomerSessionProvider({ children }) {
     }
   }, []);
 
+  const setSessionData = useCallback((nextSession) => {
+    if (nextSession) {
+      setSession(nextSession);
+      setStatus("authenticated");
+      setError(null);
+    } else {
+      setSession(null);
+      setStatus("unauthenticated");
+    }
+  }, []);
+
   const leaveSession = useCallback(async () => {
     try {
       await leaveCustomerSession();
@@ -80,9 +91,10 @@ export function CustomerSessionProvider({ children }) {
       error,
       refreshSession,
       leaveSession,
+      setSessionData,
       isAuthenticated: status === "authenticated",
     }),
-    [session, status, error, refreshSession, leaveSession],
+    [session, status, error, refreshSession, leaveSession, setSessionData],
   );
 
   return (

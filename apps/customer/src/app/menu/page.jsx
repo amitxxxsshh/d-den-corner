@@ -25,6 +25,9 @@ function MenuPageWithSearchParams() {
     isAuthenticated,
   } = useCustomerSession();
 
+  const [dismissedToken, setDismissedToken] = useState(null);
+  const activeToken = token && token !== dismissedToken ? token : null;
+
   const [selectedItem, setSelectedItem] =
     useState(null);
 
@@ -40,18 +43,12 @@ function MenuPageWithSearchParams() {
   const { addItem } = useCart();
 
   /*
-   * Token is the ONLY entry point into
-   * table ordering when there is no session.
-   */
-  if (token) {
-    return <MenuJoin token={token} />;
-  }
-
-  /*
    * Wait until the existing customer session
-   * provider has finished checking the session.
+   * provider has finished checking the session,
+   * unless a QR token entry is in progress (in which case
+   * MenuJoin renders the cinematic intro overlay immediately).
    */
-  if (status === "loading") {
+  if (!activeToken && status === "loading") {
     return (
       <main className="relative min-h-screen text-charcoal-deep flex flex-col">
         <CustomerMenuBackground />
@@ -146,6 +143,13 @@ function MenuPageWithSearchParams() {
             onClose={handleCloseConfirmation}
           />
         </>
+      ) : null}
+
+      {activeToken ? (
+        <MenuJoin
+          token={activeToken}
+          onDismiss={() => setDismissedToken(activeToken)}
+        />
       ) : null}
     </div>
   );
