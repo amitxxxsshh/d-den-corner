@@ -211,7 +211,12 @@ async function generateOrderingLink(tableQuery: string, isRemote: boolean, custo
 
   runD1Query(updateSql, isRemote);
 
-  const origin = customOrigin || process.env.CUSTOMER_ORIGIN || "http://localhost:3000";
+  const origin =
+    customOrigin ||
+    process.env.CUSTOMER_ORIGIN ||
+    (isRemote
+      ? "https://customer.soaiterbtech2024.workers.dev"
+      : "http://localhost:3000");
   const orderingUrl = `${origin.replace(/\/$/, "")}/menu?token=${rawToken}`;
 
   console.log("\n" + "=".repeat(75));

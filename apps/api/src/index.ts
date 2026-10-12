@@ -37,11 +37,22 @@ app.onError((err, c) => {
 });
 
 app.use("/api/*", async (c, next) => {
-  const allowedOrigins = [
+  const customerOrigin =
     c.env.CUSTOMER_ORIGIN ||
-      "http://localhost:3000",
+    "https://customer.soaiterbtech2024.workers.dev";
+  const staffOrigin =
     c.env.STAFF_ORIGIN ||
-      "http://localhost:3001",
+    "https://staff.soaiterbtech2024.workers.dev";
+
+  const allowedOrigins = [
+    customerOrigin,
+    staffOrigin,
+    "https://customer.soaiterbtech2024.workers.dev",
+    "https://staff.soaiterbtech2024.workers.dev",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
   ];
 
   const middleware = cors({
@@ -55,7 +66,7 @@ app.use("/api/*", async (c, next) => {
         return requestOrigin;
       }
 
-      return allowedOrigins[0];
+      return null;
     },
 
     allowMethods: [

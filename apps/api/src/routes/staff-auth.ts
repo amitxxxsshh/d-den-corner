@@ -24,6 +24,17 @@ function getCookie(
   }>,
   name: string,
 ): string | null {
+  const authHeader = c.req.header("Authorization");
+  if (authHeader) {
+    const trimmed = authHeader.trim();
+    if (trimmed.toLowerCase().startsWith("bearer ")) {
+      const token = trimmed.slice(7).trim();
+      if (token) {
+        return token;
+      }
+    }
+  }
+
   const cookieHeader =
     c.req.header("Cookie");
 
@@ -49,26 +60,67 @@ function getCookie(
   return null;
 }
 
+function isSecureContext(
+  c: Context<{
+    Bindings: Bindings;
+  }>,
+): boolean {
+  try {
+    const url = new URL(c.req.url);
+    if (url.protocol === "https:") {
+      return true;
+    }
+  } catch {
+    // ignore
+  }
+
+  const proto = c.req.header("x-forwarded-proto");
+  if (proto === "https") {
+    return true;
+  }
+
+  if (c.env.STAFF_ORIGIN?.startsWith("https://")) {
+    return true;
+  }
+
+  return false;
+}
+
 function createSessionCookie(
+  c: Context<{
+    Bindings: Bindings;
+  }>,
   token: string,
 ): string {
+  const isSecure = isSecureContext(c);
   return [
     `${SESSION_COOKIE}=${encodeURIComponent(token)}`,
     "Path=/",
     "HttpOnly",
-    "SameSite=Lax",
+    isSecure ? "Secure" : "",
+    isSecure ? "SameSite=None" : "SameSite=Lax",
     "Max-Age=604800",
-  ].join("; ");
+  ]
+    .filter(Boolean)
+    .join("; ");
 }
 
-function clearSessionCookie(): string {
+function clearSessionCookie(
+  c: Context<{
+    Bindings: Bindings;
+  }>,
+): string {
+  const isSecure = isSecureContext(c);
   return [
     `${SESSION_COOKIE}=`,
     "Path=/",
     "HttpOnly",
-    "SameSite=Lax",
+    isSecure ? "Secure" : "",
+    isSecure ? "SameSite=None" : "SameSite=Lax",
     "Max-Age=0",
-  ].join("; ");
+  ]
+    .filter(Boolean)
+    .join("; ");
 }
 
 /*
@@ -219,12 +271,14 @@ staffAuthRoutes.post(
     c.header(
       "Set-Cookie",
       createSessionCookie(
+        c,
         sessionToken,
       ),
     );
 
     return c.json({
       ok: true,
+      token: sessionToken,
       user: {
         id: user.id,
         email: user.email,
@@ -266,7 +320,7 @@ staffAuthRoutes.post(
 
     c.header(
       "Set-Cookie",
-      clearSessionCookie(),
+      clearSessionCookie(c),
     );
 
     return c.json({

@@ -1,5 +1,0 @@
-allowBuilds:
-  esbuild: set this to true or false
-  sharp: false
-  unrs-resolver: false
-  workerd: set this to true or false

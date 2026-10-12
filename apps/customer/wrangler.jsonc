@@ -23,5 +23,8 @@
 		// Enable image optimization
 		// see https://opennext.js.org/cloudflare/howtos/image
 		"binding": "IMAGES"
+	},
+	"vars": {
+		"NEXT_PUBLIC_API_URL": "https://api.soaiterbtech2024.workers.dev"
 	}
 }

@@ -3,10 +3,27 @@ import {
   clearCustomerSessionToken,
 } from "./session-token";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "http://localhost:8787";
+function getApiBaseUrl() {
+  const url =
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.NEXT_PUBLIC_API_BASE_URL;
+
+  // Ensure production builds never silently fall back to or use localhost
+  if (process.env.NODE_ENV === "production") {
+    if (url && !url.includes("localhost") && !url.includes("127.0.0.1")) {
+      return url.replace(/\/$/, "");
+    }
+    return "https://api.soaiterbtech2024.workers.dev";
+  }
+
+  if (url) {
+    return url.replace(/\/$/, "");
+  }
+
+  return "http://localhost:8787";
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 export async function apiRequest(
   path,

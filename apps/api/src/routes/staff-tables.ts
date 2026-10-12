@@ -55,6 +55,30 @@ function requireStaff(
   return null;
 }
 
+function getCustomerOrigin(
+  c: Context<{
+    Bindings: Bindings;
+  }>,
+): string {
+  if (c.env.CUSTOMER_ORIGIN) {
+    return c.env.CUSTOMER_ORIGIN;
+  }
+
+  try {
+    const requestUrl = new URL(c.req.url);
+    if (
+      requestUrl.hostname.includes("workers.dev") ||
+      requestUrl.hostname.endsWith(".workers.dev")
+    ) {
+      return "https://customer.soaiterbtech2024.workers.dev";
+    }
+  } catch {
+    // Fall back to default
+  }
+
+  return "http://localhost:3000";
+}
+
 /*
  * GET ALL TABLES
  */
@@ -74,8 +98,7 @@ staffTableRoutes.get(
       );
 
     const customerOrigin =
-      c.env.CUSTOMER_ORIGIN ||
-      "http://localhost:3000";
+      getCustomerOrigin(c);
 
     const result =
       await Promise.all(
@@ -227,8 +250,7 @@ staffTableRoutes.post(
       );
 
     const customerOrigin =
-      c.env.CUSTOMER_ORIGIN ||
-      "http://localhost:3000";
+      getCustomerOrigin(c);
 
     const orderingUrl = activatedQR?.raw_token
       ? `${customerOrigin.replace(/\/$/, "")}/menu?token=${encodeURIComponent(activatedQR.raw_token)}`
@@ -324,8 +346,7 @@ staffTableRoutes.post(
     }
 
     const customerOrigin =
-      c.env.CUSTOMER_ORIGIN ||
-      "http://localhost:3000";
+      getCustomerOrigin(c);
 
     const orderingUrl = deactivatedQR?.raw_token
       ? `${customerOrigin.replace(/\/$/, "")}/menu?token=${encodeURIComponent(deactivatedQR.raw_token)}`
@@ -461,8 +482,7 @@ staffTableRoutes.post(
       );
 
     const customerOrigin =
-      c.env.CUSTOMER_ORIGIN ||
-      "http://localhost:3000";
+      getCustomerOrigin(c);
 
     const orderingUrl = `${customerOrigin.replace(
       /\/$/,

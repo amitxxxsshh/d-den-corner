@@ -23,6 +23,10 @@
   },
   "triggers": {
     "crons": ["0 3 * * *"]
+  },
+  "vars": {
+    "CUSTOMER_ORIGIN": "https://customer.soaiterbtech2024.workers.dev",
+    "STAFF_ORIGIN": "https://staff.soaiterbtech2024.workers.dev"
   }
 }
   // "compatibility_flags": [

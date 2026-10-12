@@ -20,6 +20,17 @@ function getSessionToken(
     Bindings: Bindings;
   }>,
 ): string | null {
+  const authHeader = c.req.header("Authorization");
+  if (authHeader) {
+    const trimmed = authHeader.trim();
+    if (trimmed.toLowerCase().startsWith("bearer ")) {
+      const token = trimmed.slice(7).trim();
+      if (token) {
+        return token;
+      }
+    }
+  }
+
   const cookieHeader =
     c.req.header("Cookie");
 

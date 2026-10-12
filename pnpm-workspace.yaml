@@ -10,3 +10,5 @@ minimumReleaseAgeExclude:
 onlyBuiltDependencies:
   - esbuild
   - workerd
+patchedDependencies:
+  '@opennextjs/cloudflare@1.20.10': patches/@opennextjs__cloudflare@1.20.10.patch
